@@ -7,9 +7,6 @@
 //
 
 #import "AppDelegate+Beacons.h"
-#import "OSNavigationController.h"
-#import <Fabric/Fabric.h>
-#import <Crashlytics/Crashlytics.h>
 
 ESTBeaconManager *knewbeaconManager;
 @implementation AppDelegate (Beacons)
@@ -61,6 +58,12 @@ ESTBeaconManager *knewbeaconManager;
     knewbeaconManager = [ESTBeaconManager new];
     knewbeaconManager.delegate = self;
     [knewbeaconManager requestAlwaysAuthorization];
+    
+    // Request to Permissions to Send Local Notifications
+    if ([UIApplication instancesRespondToSelector:@selector(registerUserNotificationSettings:)]) {
+        [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert|UIUserNotificationTypeSound categories:nil]];
+    }
+    
     
     return [self xxx_application:application didFinishLaunchingWithOptions:launchOptions];
 }
