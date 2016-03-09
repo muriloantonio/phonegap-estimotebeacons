@@ -12,6 +12,8 @@
 
 #import "EstimoteBeacons.h"
 
+#define WRITEJS(VAL) [NSString stringWithFormat:@"setTimeout(function() { %@; }, 0);", VAL]
+
 #pragma mark - Estimote Triggers Declarations
 
 /*********************************************************/
@@ -60,6 +62,7 @@
 - (void) updateWithNearable: (ESTNearable*)nearable;
 
 @end
+
 
 #pragma mark - Estimote Beacons Interface
 
@@ -175,6 +178,13 @@
  */
 @property bool bluetoothState;
 
+// Messages to use on the Local Notification
+@property (nonatomic) NSMutableDictionary *enterTitle;
+@property (nonatomic) NSMutableDictionary *enterMessages;
+@property (nonatomic) NSMutableDictionary *exitTitle;
+@property (nonatomic) NSMutableDictionary *exitMessages;
+@property (nonatomic) NSMutableDictionary *deepLinks;
+
 @end
 
 #pragma mark - Estimote Beacons Implementation
@@ -241,6 +251,18 @@
 	self.callbackId_beaconsDiscovery = nil;
 	self.callbackIds_beaconsRanging = [NSMutableDictionary new];
 	self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
+    
+    self.enterTitle = [NSMutableDictionary new];
+    self.enterMessages = [NSMutableDictionary new];
+    self.exitTitle = [NSMutableDictionary new];
+    self.exitMessages = [NSMutableDictionary new];
+    self.deepLinks = [NSMutableDictionary new];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(didReceiveLocalNotification:)
+                                                 name:@"CDVLocalNotification"
+                                               object:nil];
+    
 }
 
 - (void) beacons_onReset
@@ -265,7 +287,8 @@
 {
 	// Default values for the region object.
 	NSUUID* uuid = ESTIMOTE_PROXIMITY_UUID;
-	NSString* identifier = @"EstimoteSampleRegion";
+	//NSString* identifier = @"EstimoteSampleRegion";
+    NSString* identifier = [self regionHashMapKeyWithUUID:[regionDict objectForKey:@"uuid"] andMajor:[regionDict objectForKey:@"major"] andMinor:[regionDict objectForKey:@"minor"]];
 	CLBeaconMajorValue major = 0;
 	CLBeaconMinorValue minor = 0;
 	BOOL secure = false;
@@ -297,9 +320,15 @@
 		{
 			secure = [value boolValue];
 			secureIsDefined = YES;
-		}
+        }
 	}
 
+    self.enterTitle[identifier] = [regionDict objectForKey:@"entrytitle"];
+    self.enterMessages[identifier] = [regionDict objectForKey:@"entrymessage"];
+    self.exitTitle[identifier] = [regionDict objectForKey:@"exittitle"];
+    self.exitMessages[identifier] = [regionDict objectForKey:@"exitmessage"];
+    self.deepLinks[identifier] = [regionDict objectForKey:@"deepLink"];
+    
 	// Create a beacon region object.
 	if (majorIsDefined && minorIsDefined)
 	{
@@ -322,6 +351,62 @@
 			initWithProximityUUID: uuid
 			identifier: identifier];
 	}
+}
+
+- (void)didReceiveLocalNotification: (NSNotification *)notification {
+    
+    NSLog(@"Did Receive Local Notification Observer");
+    
+    NSDictionary *userInfo = notification.userInfo;
+    NSString *uuid = [userInfo objectForKey:@"uuid"];
+
+   // NSData *json = [NSJSONSerialization dataWithJSONObject:pushData options:NSJSONWritingPrettyPrinted error:nil];
+   // NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+    
+    NSString *jsStatement = [NSString
+                             stringWithFormat:
+                             @"cordova.require(\"cordova-plugin-estimote.EstimoteBeacons\").notificationCallback(%@);",
+                             uuid];
+    [self.commandDelegate evalJs:WRITEJS(jsStatement)];
+}
+
+- (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
+    NSData *json = [NSJSONSerialization dataWithJSONObject:region options:NSJSONWritingPrettyPrinted error:nil];
+    NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+    
+    /*NSString *jsStatement = [NSString
+                             stringWithFormat:
+                              @"cordova.require(\"cordova-plugin-estimote.EstimoteBeacons\").notificationCallback(%@);",
+                             jsonString]; */
+    NSString *jsStatement = [NSString
+                             stringWithFormat:
+                             @"cordova.fireDocumentEvent(\"%@\", %@);",
+                             event, jsonString];
+    //[self.commandDelegate evalJs:WRITEJS(jsStatement)];
+//     [self.commandDelegate evalJs:jsStatement];
+    
+    if (self.webView != nil) {
+        [self.webView stringByEvaluatingJavaScriptFromString:jsStatement];
+    } else {
+        NSLog(@"webView is null");
+    }
+}
+
+- (NSString *) regionHashMapKeyWithUUID: (NSString *)uuid andMajor: (NSNumber *)major andMinor: (NSNumber *)minor {
+    if (!uuid) {
+        uuid = @"0";
+    }
+    
+    if (major == 0) {
+        major = 0;
+    }
+    
+    if (minor == 0) {
+        minor = 0;
+    }
+    
+    // use % for easier decomposition
+    return [NSString stringWithFormat:@"%@:%@:%@",uuid, major, minor];
 }
 
 /**
@@ -802,9 +887,9 @@
 
 	// Start monitoring.
 	[aManager startMonitoringForRegion:region];
-
+    
 	// This will get the initial state faster.
-	[aManager requestStateForRegion:region];
+	//[aManager requestStateForRegion:region];
 }
 
 /**
@@ -861,13 +946,74 @@
 - (void) beaconManager:(id)manager
 	didEnterRegion:(CLBeaconRegion *)region
 {
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    {
+        NSString *message = self.enterMessages[region.identifier];
+        if(!message)
+            message = [NSString stringWithFormat:@"Discover Beacon: %@", region.identifier];
+        
+        NSString *title = self.enterTitle[region.identifier];
+        if (!title) {
+            title = @"";
+        }
+        
+        NSString *deepLink = self.deepLinks[region.identifier];
+        if (!deepLink) {
+            deepLink = @"";
+        }
+        
+        UILocalNotification *notification = [UILocalNotification new];
+        notification.alertBody = message;
+        notification.alertTitle = title;
+        notification.soundName = UILocalNotificationDefaultSoundName;
+        notification.userInfo = @{@"DeepLinkURLKey": deepLink};
+        [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+    } else {
+        NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:
+                                    region.proximityUUID.UUIDString, @"uuid",
+                                    region.major, @"major",
+                                    region.minor, @"minor",
+                                    region.identifier, @"identifier", @"inside", @"state", nil];
+        [self dispatchPush:dictionary forStateEvent:@"beacon-monitor-enter"];
+    }
 	// Not used.
 }
 
 - (void) beaconManager:(id)manager
 	didExitRegion:(CLBeaconRegion *)region
 {
-	// Not used.
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    {
+        NSString *message = self.exitMessages[region.identifier];
+        if(!message)
+            message = [NSString stringWithFormat:@"Exited from Beacon Region: %@", region.identifier];
+        
+        NSString *title = self.exitTitle[region.identifier];
+        if (!title) {
+            title = @"";
+        }
+        
+        NSString *deepLink = self.deepLinks[region.identifier];
+        if (!deepLink) {
+            deepLink = @"";
+        }
+        
+        UILocalNotification *notification = [UILocalNotification new];
+        notification.alertBody = message;
+        notification.alertTitle = title;
+        notification.soundName = UILocalNotificationDefaultSoundName;
+        notification.userInfo = @{@"DeepLinkURLKey": deepLink};
+        [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+    } else {
+        NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:
+                                    region.proximityUUID.UUIDString, @"uuid",
+                                    region.major, @"major",
+                                    region.minor, @"minor",
+                                    region.identifier, @"identifier", @"outside", @"state", nil];
+        [self dispatchPush:dictionary forStateEvent:@"beacon-monitor-exit"];
+    }
 }
 
 /**
