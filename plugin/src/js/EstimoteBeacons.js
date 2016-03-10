@@ -1,4 +1,3 @@
-//
 // Use jsdoc to generate documentation.
 //
 // Install JSDoc on OS X (specify the actual JSDoc version you wish to use):
@@ -34,6 +33,7 @@
 //
 
 var exec = cordova.require('cordova/exec');
+var channel = cordova.require('cordova/channel');
 
 /*********************************************************/
 /***************** Estimote Namespaces *******************/
@@ -2056,3 +2056,45 @@ function checkExecParamsRegion(region)
 
 	return true;
 }
+
+channel.createSticky('onBeaconsServiceReady');
+channel.waitForInitialization('onBeaconsServiceReady');
+
+var timerId = null;
+var timeout = 500;
+
+channel.onCordovaReady.subscribe(function() {
+	exec( function(data) {
+		if(data.ready === true) {
+			console.log("Init Service called and successfully initialized");
+			if(channel.onBeaconsServiceReady.state !== 2) {
+				channel.onBeaconsServiceReady.fire();
+			}
+		}
+	},
+	function(){
+		console.log("Error initializing service...");
+		if(channel.onBeaconsServiceReady.state !== 2) {
+			channel.onBeaconsServiceReady.fire();
+		}
+	}, 'EstimoteBeacons', 'initService', []);
+});
+
+cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
+	success: function(data) {
+		console.log("EstimoteBeaconsStaticChannel success");
+		if(data !== undefined) {
+			switch(data.state) {
+				case "inside":
+					cordova.fireDocumentEvent("beacon-monitor-enter", data);
+					break;
+				case "outside":
+					cordova.fireDocumentEvent("beacon-monitor-exit", data);
+					break;
+			}
+		}
+	},
+	fail: function() {
+
+	}
+};
