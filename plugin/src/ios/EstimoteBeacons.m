@@ -63,7 +63,6 @@
 
 @end
 
-
 #pragma mark - Estimote Beacons Interface
 
 /*********************************************************/
@@ -178,13 +177,6 @@
  */
 @property bool bluetoothState;
 
-// Messages to use on the Local Notification
-@property (nonatomic) NSMutableDictionary *enterTitle;
-@property (nonatomic) NSMutableDictionary *enterMessages;
-@property (nonatomic) NSMutableDictionary *exitTitle;
-@property (nonatomic) NSMutableDictionary *exitMessages;
-@property (nonatomic) NSMutableDictionary *deepLinks;
-
 @end
 
 #pragma mark - Estimote Beacons Implementation
@@ -252,17 +244,10 @@
 	self.callbackIds_beaconsRanging = [NSMutableDictionary new];
 	self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
     
-    self.enterTitle = [NSMutableDictionary new];
-    self.enterMessages = [NSMutableDictionary new];
-    self.exitTitle = [NSMutableDictionary new];
-    self.exitMessages = [NSMutableDictionary new];
-    self.deepLinks = [NSMutableDictionary new];
-    
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(didReceiveLocalNotification:)
                                                  name:@"CDVLocalNotification"
                                                object:nil];
-    
 }
 
 - (void) beacons_onReset
@@ -321,13 +306,26 @@
 			secure = [value boolValue];
 			secureIsDefined = YES;
         }
-	}
+        
+       	}
+    
+    //add to plist and store beacon info
 
-    self.enterTitle[identifier] = [regionDict objectForKey:@"entrytitle"];
-    self.enterMessages[identifier] = [regionDict objectForKey:@"entrymessage"];
-    self.exitTitle[identifier] = [regionDict objectForKey:@"exittitle"];
-    self.exitMessages[identifier] = [regionDict objectForKey:@"exitmessage"];
-    self.deepLinks[identifier] = [regionDict objectForKey:@"deepLink"];
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+    if([myDictionary count] == 0)
+    {
+        myDictionary=[[NSMutableDictionary alloc]init];
+    }
+        
+    
+    [myDictionary setObject:regionDict forKey:[regionDict objectForKey:@"identifier"]];
+    [myDictionary writeToFile:path atomically:YES];
+
+
+    
     
 	// Create a beacon region object.
 	if (majorIsDefined && minorIsDefined)
@@ -354,20 +352,12 @@
 }
 
 - (void)didReceiveLocalNotification: (NSNotification *)notification {
-    
-    NSLog(@"Did Receive Local Notification Observer");
-    
-    NSDictionary *userInfo = notification.userInfo;
-    NSString *uuid = [userInfo objectForKey:@"uuid"];
-
-   // NSData *json = [NSJSONSerialization dataWithJSONObject:pushData options:NSJSONWritingPrettyPrinted error:nil];
-   // NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
-    
-    NSString *jsStatement = [NSString
-                             stringWithFormat:
-                             @"cordova.require(\"cordova-plugin-estimote.EstimoteBeacons\").notificationCallback(%@);",
-                             uuid];
-    [self.commandDelegate evalJs:WRITEJS(jsStatement)];
+    UILocalNotification *castedotification = notification.object;
+    NSDictionary *userInfo = castedotification.userInfo;
+    if([userInfo objectForKey:@"beacon.notification.data"] != nil)
+    {
+    	[self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
+    }
 }
 
 - (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
@@ -375,21 +365,23 @@
     NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
     
     /*NSString *jsStatement = [NSString
-                             stringWithFormat:
-                              @"cordova.require(\"cordova-plugin-estimote.EstimoteBeacons\").notificationCallback(%@);",
-                             jsonString]; */
+     stringWithFormat:
+     @"cordova.require(\"cordova-plugin-estimote.EstimoteBeacons\").notificationCallback(%@);",
+     jsonString]; */
     NSString *jsStatement = [NSString
                              stringWithFormat:
                              @"cordova.fireDocumentEvent(\"%@\", %@);",
                              event, jsonString];
     //[self.commandDelegate evalJs:WRITEJS(jsStatement)];
-//     [self.commandDelegate evalJs:jsStatement];
+    //     [self.commandDelegate evalJs:jsStatement];
     
     if (self.webView != nil) {
         [self.webView stringByEvaluatingJavaScriptFromString:jsStatement];
     } else {
         NSLog(@"webView is null");
     }
+    
+
 }
 
 - (NSString *) regionHashMapKeyWithUUID: (NSString *)uuid andMajor: (NSNumber *)major andMinor: (NSNumber *)minor {
@@ -558,6 +550,15 @@
 }
 
 #pragma mark - CoreBluetooth discovery
+
+- (void) initService:(CDVInvokedUrlCommand*) command {
+    NSDictionary *data = [NSDictionary dictionaryWithObjectsAndKeys:
+                          [NSNumber numberWithBool:YES], @"ready",
+                          nil];
+    
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:data];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
 
 /**
  * Start CoreBluetooth discovery.
@@ -840,6 +841,11 @@
 	[self
 		beacons_impl_stopMonitoringForRegion:command
 		manager:self.beaconManager];
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+    NSFileManager *Manager = [NSFileManager defaultManager];
+     [Manager removeItemAtPath: path error:NULL];
 }
 /**
  * Start secure CoreLocation monitoring.
@@ -942,40 +948,26 @@
 {
 	// Not used.
 }
+-(NSMutableDictionary*) getPlistData
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+    
+    return myDictionary;
+}
 
 - (void) beaconManager:(id)manager
 	didEnterRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
-    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    if (state == UIApplicationStateActive)
     {
-        NSString *message = self.enterMessages[region.identifier];
-        if(!message)
-            message = [NSString stringWithFormat:@"Discover Beacon: %@", region.identifier];
-        
-        NSString *title = self.enterTitle[region.identifier];
-        if (!title) {
-            title = @"";
-        }
-        
-        NSString *deepLink = self.deepLinks[region.identifier];
-        if (!deepLink) {
-            deepLink = @"";
-        }
-        
-        UILocalNotification *notification = [UILocalNotification new];
-        notification.alertBody = message;
-        notification.alertTitle = title;
-        notification.soundName = UILocalNotificationDefaultSoundName;
-        notification.userInfo = @{@"DeepLinkURLKey": deepLink};
-        [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
-    } else {
-        NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:
-                                    region.proximityUUID.UUIDString, @"uuid",
-                                    region.major, @"major",
-                                    region.minor, @"minor",
-                                    region.identifier, @"identifier", @"inside", @"state", nil];
-        [self dispatchPush:dictionary forStateEvent:@"beacon-monitor-enter"];
+        NSMutableDictionary *Beacondata = [self getPlistData];
+        NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
+        [SelectedBeacon setValue:@"inside" forKey:@"state"];
+        [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-enter"];
     }
 	// Not used.
 }
@@ -984,35 +976,12 @@
 	didExitRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
-    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    if (state == UIApplicationStateActive)
     {
-        NSString *message = self.exitMessages[region.identifier];
-        if(!message)
-            message = [NSString stringWithFormat:@"Exited from Beacon Region: %@", region.identifier];
-        
-        NSString *title = self.exitTitle[region.identifier];
-        if (!title) {
-            title = @"";
-        }
-        
-        NSString *deepLink = self.deepLinks[region.identifier];
-        if (!deepLink) {
-            deepLink = @"";
-        }
-        
-        UILocalNotification *notification = [UILocalNotification new];
-        notification.alertBody = message;
-        notification.alertTitle = title;
-        notification.soundName = UILocalNotificationDefaultSoundName;
-        notification.userInfo = @{@"DeepLinkURLKey": deepLink};
-        [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
-    } else {
-        NSDictionary *dictionary = [NSDictionary dictionaryWithObjectsAndKeys:
-                                    region.proximityUUID.UUIDString, @"uuid",
-                                    region.major, @"major",
-                                    region.minor, @"minor",
-                                    region.identifier, @"identifier", @"outside", @"state", nil];
-        [self dispatchPush:dictionary forStateEvent:@"beacon-monitor-exit"];
+        NSMutableDictionary *Beacondata = [self getPlistData];
+        NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
+        [SelectedBeacon setValue:@"outside" forKey:@"state"];
+        [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-exit"];
     }
 }
 
@@ -1059,6 +1028,8 @@
 			messageAsDictionary:dict];
 		[result setKeepCallback:[NSNumber numberWithBool:YES]];
 		[self.commandDelegate sendPluginResult:result callbackId:callbackId];
+        
+        [manager startMonitoringForRegion:region];
 	}
 }
 

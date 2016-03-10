@@ -25,19 +25,14 @@ ESTBeaconManager *knewbeaconManager;
     return objc_getAssociatedObject(self, (__bridge const void *)(knewbeaconManager));
 }
 
-
-
 + (void)load {
-    
-    
-    
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         
         Class class = [self class];
         
         SEL originalSelector = @selector(application:didFinishLaunchingWithOptions:);
-        SEL swizzledSelector = @selector(xxx_application:didFinishLaunchingWithOptions:);
+        SEL swizzledSelector = @selector(beacons_application:didFinishLaunchingWithOptions:);
         
         Method originalMethod = class_getInstanceMethod(class, originalSelector);
         Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
@@ -53,8 +48,8 @@ ESTBeaconManager *knewbeaconManager;
     });
 }
 
-- (BOOL) xxx_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-     NSLog(@"---------- extra thing ----------");
+- (BOOL) beacons_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+     NSLog(@"---------- beacons_application_didFinishLaunchingWithOptions ----------");
     knewbeaconManager = [ESTBeaconManager new];
     knewbeaconManager.delegate = self;
     [knewbeaconManager requestAlwaysAuthorization];
@@ -64,31 +59,73 @@ ESTBeaconManager *knewbeaconManager;
         [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert|UIUserNotificationTypeSound categories:nil]];
     }
     
-    
-    return [self xxx_application:application didFinishLaunchingWithOptions:launchOptions];
+    return [self beacons_application:application didFinishLaunchingWithOptions:launchOptions];
 }
-
 
 -(void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
-    //NSLog(@"-------- CENAS ---------");
+    
+    NSLog(@"Did Receive Local Notification Delegate");
+    
+    //NSDictionary *userInfo = notification.userInfo;
+   // NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
+  //[[UIApplication sharedApplication] openURL:siteURL];
+    [[NSNotificationCenter defaultCenter] postNotificationName:CDVLocalNotification object:notification];
 }
-
 
 -(void)beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
-  /*      NSLog(@"---------- Enter Region ----------");
-        UILocalNotification *notification = [[UILocalNotification alloc] init];
-        notification.alertBody = @"Enter region";
-        notification.soundName = UILocalNotificationDefaultSoundName;
-        [[UIApplication sharedApplication] presentLocalNotificationNow:notification]; */
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    {
+
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *documentsDirectory = [paths objectAtIndex:0];
+        NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+        NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+    
+        NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
+    
+        if([beacondata objectForKey:@"enterMessage"] != nil)
+        {
+            UILocalNotification *notification = [[UILocalNotification alloc] init];
+            notification.alertBody =[beacondata objectForKey:@"enterMessage"];
+            notification.soundName = UILocalNotificationDefaultSoundName;
+            [beacondata setValue:@"inside" forKey:@"state"];
+            //set up user info dicionary
+            NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
+            [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
+            [userInfoDict setValue:@"beacon-monitor-enter" forKey:@"event"];
+            notification.userInfo = userInfoDict;
+            [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+        }
+    }
 }
 
 -(void)beaconManager:(ESTBeaconManager *)manager didExitRegion:(CLBeaconRegion *)region
 {
-  /*      UILocalNotification *notification = [[UILocalNotification alloc] init];
-        notification.alertBody = @"Exit region";
-        notification.soundName = UILocalNotificationDefaultSoundName;
-        [[UIApplication sharedApplication] presentLocalNotificationNow:notification]; */
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    {
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *documentsDirectory = [paths objectAtIndex:0];
+        NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+        NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+    
+        NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
+        if([beacondata objectForKey:@"exitMessage"] != nil)
+        {
+            UILocalNotification *notification = [[UILocalNotification alloc] init];
+            notification.alertBody = [beacondata objectForKey:@"exitMessage"];
+            notification.soundName = UILocalNotificationDefaultSoundName;
+            [beacondata setValue:@"outside" forKey:@"state"];
+            //set up user info dicionary
+            NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
+            [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
+            [userInfoDict setValue:@"beacon-monitor-exit" forKey:@"event"];
+            notification.userInfo = userInfoDict;
+            [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+        }
+    }
 }
 
 @end

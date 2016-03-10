@@ -13,7 +13,7 @@
 @interface AppDelegate (Beacons) <ESTBeaconManagerDelegate>
 
 @property (strong, nonatomic) ESTBeaconManager *beaconManager;
-- (BOOL) xxx_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions;
+- (BOOL) beacons_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions;
 
 
 @end
