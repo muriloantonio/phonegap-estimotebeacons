@@ -1028,8 +1028,6 @@
 			messageAsDictionary:dict];
 		[result setKeepCallback:[NSNumber numberWithBool:YES]];
 		[self.commandDelegate sendPluginResult:result callbackId:callbackId];
-        
-        [manager startMonitoringForRegion:region];
 	}
 }
 
