@@ -894,6 +894,12 @@
 	// Start monitoring.
 	[aManager startMonitoringForRegion:region];
     
+    CDVPluginResult* result = [CDVPluginResult
+                               resultWithStatus:CDVCommandStatus_OK
+                               messageAsDictionary:regionDictionary];
+   // [result setKeepCallback:[NSNumber numberWithBool:YES]];
+    [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+    
 	// This will get the initial state faster.
 	//[aManager requestStateForRegion:region];
 }
@@ -1023,11 +1029,11 @@
 		[dict setValue:stateString forKey:@"state"];
 
 		// Send result.
-		CDVPluginResult* result = [CDVPluginResult
+	/*	CDVPluginResult* result = [CDVPluginResult
 			resultWithStatus:CDVCommandStatus_OK
 			messageAsDictionary:dict];
 		[result setKeepCallback:[NSNumber numberWithBool:YES]];
-		[self.commandDelegate sendPluginResult:result callbackId:callbackId];
+		[self.commandDelegate sendPluginResult:result callbackId:callbackId]; */
 	}
 }
 
