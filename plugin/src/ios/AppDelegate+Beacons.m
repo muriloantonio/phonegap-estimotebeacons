@@ -59,12 +59,30 @@ ESTBeaconManager *knewbeaconManager;
         [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert|UIUserNotificationTypeSound categories:nil]];
     }
     
+    //TODO
+    UILocalNotification *notification = [launchOptions objectForKey:UIApplicationLaunchOptionsLocalNotificationKey];
+    
+    if(notification != nil){
+        NSDictionary *userInfo = notification.userInfo;
+        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
+        
+        [[UIApplication sharedApplication] openURL:siteURL];
+    }
+    
     return [self beacons_application:application didFinishLaunchingWithOptions:launchOptions];
 }
 
 -(void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
     
     NSLog(@"Did Receive Local Notification Delegate");
+    
+    if(notification != nil){
+        NSDictionary *userInfo = notification.userInfo;
+        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
+        
+        if( siteURL)
+            [[UIApplication sharedApplication] openURL:siteURL];
+    }
     
     //NSDictionary *userInfo = notification.userInfo;
    // NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
@@ -88,6 +106,9 @@ ESTBeaconManager *knewbeaconManager;
         if([beacondata objectForKey:@"enterMessage"] != nil)
         {
             UILocalNotification *notification = [[UILocalNotification alloc] init];
+            if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
+                notification.alertTitle = [beacondata objectForKey:@"enterTitle"];
+            }
             notification.alertBody =[beacondata objectForKey:@"enterMessage"];
             notification.soundName = UILocalNotificationDefaultSoundName;
             [beacondata setValue:@"inside" forKey:@"state"];
@@ -115,6 +136,9 @@ ESTBeaconManager *knewbeaconManager;
         if([beacondata objectForKey:@"exitMessage"] != nil)
         {
             UILocalNotification *notification = [[UILocalNotification alloc] init];
+            if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
+                notification.alertTitle = [beacondata objectForKey:@"exitTitle"];
+            }
             notification.alertBody = [beacondata objectForKey:@"exitMessage"];
             notification.soundName = UILocalNotificationDefaultSoundName;
             [beacondata setValue:@"outside" forKey:@"state"];
