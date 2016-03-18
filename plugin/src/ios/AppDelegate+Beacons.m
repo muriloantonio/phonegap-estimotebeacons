@@ -63,7 +63,7 @@ ESTBeaconManager *knewbeaconManager;
     
     if(notification != nil){
         NSDictionary *userInfo = notification.userInfo;
-        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
+        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
         
         [[UIApplication sharedApplication] openURL:siteURL];
     }
@@ -77,7 +77,7 @@ ESTBeaconManager *knewbeaconManager;
     
     if(notification != nil){
         NSDictionary *userInfo = notification.userInfo;
-        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
+        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
         
         if( siteURL)
             [[UIApplication sharedApplication] openURL:siteURL];
@@ -115,6 +115,8 @@ ESTBeaconManager *knewbeaconManager;
             NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
             [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
             [userInfoDict setValue:@"beacon-monitor-enter" forKey:@"event"];
+            if([beacondata objectForKey:@"deeplink"])
+                [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
             notification.userInfo = userInfoDict;
             [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
         }
@@ -145,6 +147,8 @@ ESTBeaconManager *knewbeaconManager;
             NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
             [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
             [userInfoDict setValue:@"beacon-monitor-exit" forKey:@"event"];
+            if([beacondata objectForKey:@"deeplink"])
+                [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
             notification.userInfo = userInfoDict;
             [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
         }
