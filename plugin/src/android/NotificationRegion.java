@@ -17,6 +17,7 @@ public class NotificationRegion extends Region implements Parcelable {
     private String enterMessage;
     private String exitMessage;
     private String deeplink;
+    private boolean openedFromNotification;
 
     public String getDeeplink() {
         return deeplink;
@@ -38,6 +39,14 @@ public class NotificationRegion extends Region implements Parcelable {
         return exitTitle;
     }
 
+    public void setOpenedFromNotification(boolean openedFromNotification) {
+        this.openedFromNotification = openedFromNotification;
+    }
+
+    public boolean isOpenedFromNotification() {
+        return openedFromNotification;
+    }
+
     public NotificationRegion(String identifier, UUID proximityUUID, Integer major, Integer minor, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink) {
         super(identifier, proximityUUID, major, minor);
         this.enterMessage = enterMessage;
@@ -45,6 +54,7 @@ public class NotificationRegion extends Region implements Parcelable {
         this.exitMessage = exitMessage;
         this.exitTitle = exitTitle;
         this.deeplink = deeplink;
+        this.openedFromNotification = false;
     }
 
     public NotificationRegion(Region region, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink) {
@@ -59,6 +69,7 @@ public class NotificationRegion extends Region implements Parcelable {
 
         NotificationRegion that = (NotificationRegion) o;
 
+        if (openedFromNotification != that.openedFromNotification) return false;
         if (enterTitle != null ? !enterTitle.equals(that.enterTitle) : that.enterTitle != null)
             return false;
         if (exitTitle != null ? !exitTitle.equals(that.exitTitle) : that.exitTitle != null)
@@ -79,6 +90,7 @@ public class NotificationRegion extends Region implements Parcelable {
         result = 31 * result + (enterMessage != null ? enterMessage.hashCode() : 0);
         result = 31 * result + (exitMessage != null ? exitMessage.hashCode() : 0);
         result = 31 * result + (deeplink != null ? deeplink.hashCode() : 0);
+        result = 31 * result + (openedFromNotification ? 1 : 0);
         return result;
     }
 

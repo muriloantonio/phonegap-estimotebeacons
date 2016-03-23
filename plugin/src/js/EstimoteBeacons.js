@@ -185,7 +185,7 @@ estimote.bluetoothState = function(success, error)
  * @deprecated
  * @memberof estimote.beacons
  */
-estimote.beacons.printObject = estimote.printObject
+estimote.beacons.printObject = estimote.printObject;
 
 /**
  * Proximity value.
@@ -1897,7 +1897,7 @@ estimote.triggers.rules.nearableTemperatureLowerThan = function(temp)
 estimote.triggers.rules.nearableTemperatureGreaterThan = function(temp)
 {
 	return function(rule, nearable) {
-	console.log('nearable.temperature :' + nearable.temperature)
+	console.log('nearable.temperature :' + nearable.temperature);
 		rule.state =
 			nearable &&
 			(nearable.temperature > temp);
@@ -2000,7 +2000,7 @@ function isInt(value)
  */
 function checkExecParamsRegionSuccessError(region, success, error)
 {
-	var caller = checkExecParamsRegionSuccessError.caller.name
+	var caller = checkExecParamsRegionSuccessError.caller.name;
 
 	if (typeof region != 'object') {
 		console.error('Error: region parameter is not an object in: ' + caller);
@@ -2026,7 +2026,7 @@ function checkExecParamsRegionSuccessError(region, success, error)
  */
 function checkExecParamsSuccessError(success, error)
 {
-	var caller = checkExecParamsSuccessError.caller.name
+	var caller = checkExecParamsSuccessError.caller.name;
 
 	if (typeof success != 'function') {
 		console.error('Error: success parameter is not a function in: ' + caller);
@@ -2047,7 +2047,7 @@ function checkExecParamsSuccessError(success, error)
  */
 function checkExecParamsRegion(region)
 {
-	var caller = checkExecParamsRegion.caller.name
+	var caller = checkExecParamsRegion.caller.name;
 
 	if (typeof region != 'object') {
 		console.error('Error: region parameter is not an object in: ' + caller);
@@ -2084,12 +2084,14 @@ cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
 	success: function(data) {
 		console.log("EstimoteBeaconsStaticChannel success");
 		if(data !== undefined) {
+			var notificationData = {"notificationData" : data};
 			switch(data.state) {
+
 				case "inside":
-					cordova.fireDocumentEvent("beacon-monitor-enter", data);
+					cordova.fireDocumentEvent("beacon-monitor-enter", notificationData);
 					break;
 				case "outside":
-					cordova.fireDocumentEvent("beacon-monitor-exit", data);
+					cordova.fireDocumentEvent("beacon-monitor-exit", notificationData);
 					break;
 			}
 		}
@@ -2098,3 +2100,7 @@ cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
 
 	}
 };
+
+channel.deviceready.subscribe(function() {
+	exec(null, null, 'EstimoteBeacons', 'deviceReady', []);
+});

@@ -16,6 +16,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
 
+import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 
 import com.estimote.sdk.Beacon;
@@ -391,14 +392,18 @@ public class BeaconsMonitoringService extends Service {
                 && notificationRegion.getExitTitle() != null && !notificationRegion.getExitTitle().isEmpty()
                 && notificationRegion.getExitMessage() != null && !notificationRegion.getExitMessage().isEmpty()) {
 
-            if(false){
-                notifyIntent = createLaunchIntent(notificationRegion);
+            Context context = getApplicationContext();
+            String packageName = context.getPackageName();
+
+            notifyIntent = context.getPackageManager()
+                    .getLaunchIntentForPackage(packageName);
+
+            if(notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
+                notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
             } else {
-                notifyIntent = new Intent(Intent.ACTION_VIEW);
-                if(notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
-                    notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
-                }
-                notifyIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                notificationRegion.setOpenedFromNotification(true);
+                notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
+                notifyIntent.putExtra("beacons.notification.inside", entering);
             }
 
             if (notifyIntent == null) {
@@ -407,14 +412,13 @@ public class BeaconsMonitoringService extends Service {
 
             Log.d(TAG, notifyIntent.toString());
 
-            PendingIntent pendingIntent = PendingIntent.getActivities(
-                    BeaconsMonitoringService.this,
-                    0,
-                    new Intent[]{notifyIntent},
-                    PendingIntent.FLAG_UPDATE_CURRENT);
+
+            TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
+            stackBuilder.addNextIntent(notifyIntent);
+            PendingIntent pendingIntent = stackBuilder.getPendingIntent(
+                    0, PendingIntent.FLAG_UPDATE_CURRENT);
 
             // Set message depending entering or exit...
-
             Notification notification = new Notification.Builder(BeaconsMonitoringService.this)
                     .setSmallIcon(R.drawable.icon)
                     .setContentTitle(entering ? notificationRegion.getEnterTitle() : notificationRegion.getExitTitle())

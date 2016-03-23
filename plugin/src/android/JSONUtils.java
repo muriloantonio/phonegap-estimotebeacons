@@ -33,6 +33,7 @@ public class JSONUtils {
             jsonObject.put("exitTitle", notificationRegion.getExitTitle());
             jsonObject.put("exitMessage", notificationRegion.getExitMessage());
             jsonObject.put("deeplink", notificationRegion.getDeeplink());
+            jsonObject.put("openedFromNotification", notificationRegion.isOpenedFromNotification());
         }
         return jsonObject;
     }

@@ -103,11 +103,11 @@ public class EstimoteBeacons extends CordovaPlugin
 		}
 
 		mBeaconManager.setErrorListener(new BeaconManager.ErrorListener() {
-			@Override
-			public void onError(Integer errorId) {
-				Log.e(LOGTAG, "BeaconManager error: " + errorId);
-			}
-		});
+            @Override
+            public void onError(Integer errorId) {
+                Log.e(LOGTAG, "BeaconManager error: " + errorId);
+            }
+        });
 
 		mRangedBeacons = new ArrayList<Beacon>();
 
@@ -132,12 +132,20 @@ public class EstimoteBeacons extends CordovaPlugin
 	@Override
 	public void onResume(boolean multitasking) {
 		Log.i(LOGTAG, "onResume - " + multitasking);
+
+        doBindService();
+        registerServiceReadyBroadcastReceiver();
+
 		super.onResume(multitasking);
 	}
 
 	@Override
 	public void onPause(boolean multitasking) {
 		Log.i(LOGTAG, "onPause - " + multitasking);
+
+        unregisterServiceReadyBroadcastReceiver();
+        doUnbindService();
+
 		super.onPause(multitasking);
 	}
 
@@ -146,8 +154,6 @@ public class EstimoteBeacons extends CordovaPlugin
 	 */
 	public void onDestroy() {
 		Log.i(LOGTAG, "onDestroy");
-		unregisterServiceReadyBroadcastReceiver();
-		doUnbindService();
 		disconnectConnectedBeacon();
 		disconnectBeaconManager();
 		mMessenger = null;
@@ -208,8 +214,9 @@ public class EstimoteBeacons extends CordovaPlugin
 		}
 		else if("initService".equals(action)) {
 			initService(args, callbackContext);
-		}
-		else {
+		} else if("deviceReady".equals(action)) {
+			deviceReady(args, callbackContext);
+		} else {
 			return false;
 		}
 		return true;
@@ -221,6 +228,25 @@ public class EstimoteBeacons extends CordovaPlugin
 		mInitServiceCallbackContext = callbackContext;
 		sendMonitoringServiceReady();
 		return true;
+	}
+
+	private void deviceReady(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
+        Intent intent = cordova.getActivity().getIntent();
+        Intent launcherIntent = intent.getParcelableExtra("LAUNCHER_INTENT");
+        if (launcherIntent != null) {
+
+            String data = launcherIntent.getStringExtra("beacons.notification.data");
+            boolean inside = launcherIntent.getBooleanExtra("beacons.notification.inside", false);
+			if (data != null) {
+				try{
+					final JSONObject jsonObject = new JSONObject(data);
+					jsonObject.put("state", inside ? "inside" : "outside");
+					sendMonitoringUpdateToWebView(jsonObject);
+				} catch (JSONException e) {
+
+				}
+			}
+		}
 	}
 
 	/**
@@ -1220,48 +1246,32 @@ public class EstimoteBeacons extends CordovaPlugin
 		}
 	}
 
-	private void fireDocumentEvent(String eventName, String data){
-		final String jsStatement = String.format("cordova.fireDocumentEvent('%s', %s)", eventName, JSONObject.quote(data));
-		Log.d(LOGTAG, "fireDocumentEvent: " + jsStatement);
-		cordova.getActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                webView.loadUrl("javascript:" + jsStatement);
-            }
-        });
-	}
-
 	private void sendMonitoringRegionEnterUpdate(Region region) {
         try{
             final JSONObject jsonObject = JSONUtils.toJSONObject(region, "inside");
             if(jsonObject != null) {
-                final String jsonRegion = jsonObject.toString();
-                //fireDocumentEvent("beacon-monitor-enter", jsonRegion);
-
-				PluginResult pr = new PluginResult(PluginResult.Status.OK, jsonObject);
-				pr.setKeepCallback(true);
-				webView.sendPluginResult(pr, "EstimoteBeaconsStaticChannel");
-                Log.d(LOGTAG, "sendMonitoringRegionEnterUpdate");
+                sendMonitoringUpdateToWebView(jsonObject);
             }
         } catch (JSONException e) {
             Log.e(LOGTAG, "sendMonitoringRegionEnterUpdate error: ", e);
         }
 	}
 
-	private void sendMonitoringRegionExitUpdate(Region region) {
+    private void sendMonitoringRegionExitUpdate(Region region) {
         try{
             final JSONObject jsonObject = JSONUtils.toJSONObject(region, "outside");
             if(jsonObject != null) {
-                final String jsonRegion = jsonObject.toString();
-                //fireDocumentEvent("beacon-monitor-exit", jsonRegion);
-				PluginResult pr = new PluginResult(PluginResult.Status.OK, jsonObject);
-				pr.setKeepCallback(true);
-				webView.sendPluginResult(pr, "EstimoteBeaconsStaticChannel");
-                Log.d(LOGTAG, "sendMonitoringRegionExitUpdate");
+                sendMonitoringUpdateToWebView(jsonObject);
             }
         } catch (JSONException e) {
             Log.e(LOGTAG, "sendMonitoringRegionExitUpdate error: ", e);
         }
 	}
 
+    private void sendMonitoringUpdateToWebView(JSONObject jsonObject) {
+        PluginResult pr = new PluginResult(PluginResult.Status.OK, jsonObject);
+        pr.setKeepCallback(true);
+        webView.sendPluginResult(pr, "EstimoteBeaconsStaticChannel");
+        Log.d(LOGTAG, "sendMonitoringRegionEnterUpdate");
+    }
 }
