@@ -45,6 +45,20 @@ ESTBeaconManager *knewbeaconManager;
             method_exchangeImplementations(originalMethod, swizzledMethod);
         }
         
+        //
+        SEL originalSelectorNoti = @selector(application:didReceiveLocalNotification:);
+        SEL swizzledSelectorNoti = @selector(beacons_application:didReceiveLocalNotification:);
+        
+        Method originalMethodNoti = class_getInstanceMethod(class, originalSelectorNoti);
+        Method swizzledMethodNoti = class_getInstanceMethod(class, swizzledSelectorNoti);
+        
+        BOOL didAddMethodNoti = class_addMethod(class, originalSelectorNoti, method_getImplementation(swizzledMethodNoti), method_getTypeEncoding(swizzledMethodNoti));
+        
+        if (didAddMethodNoti) {
+            class_replaceMethod(class, swizzledSelectorNoti, method_getImplementation(originalMethodNoti), method_getTypeEncoding(originalMethodNoti));
+        } else {
+            method_exchangeImplementations(originalMethodNoti, swizzledMethodNoti);
+        }
     });
 }
 
@@ -59,21 +73,11 @@ ESTBeaconManager *knewbeaconManager;
         [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert|UIUserNotificationTypeSound categories:nil]];
     }
     
-    UILocalNotification *notification = [launchOptions objectForKey:UIApplicationLaunchOptionsLocalNotificationKey];
-    
-    if(notification != nil){
-        NSDictionary *userInfo = notification.userInfo;
-        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
-        
-        [[UIApplication sharedApplication] openURL:siteURL];
-    }
-    
     return [self beacons_application:application didFinishLaunchingWithOptions:launchOptions];
 }
 
--(void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
-    
-    NSLog(@"Did Receive Local Notification Delegate");
+-(void) beacons_application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
+    NSLog(@"Did Receive Local Notification Delegate - Beacons");
     
     if(notification != nil){
         NSDictionary *userInfo = notification.userInfo;
@@ -81,13 +85,27 @@ ESTBeaconManager *knewbeaconManager;
         
         if( siteURL)
             [[UIApplication sharedApplication] openURL:siteURL];
+        else{
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
+        }
     }
-    
-    //NSDictionary *userInfo = notification.userInfo;
-   // NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"DeepLinkURLKey"]];
-  //[[UIApplication sharedApplication] openURL:siteURL];
-    [[NSNotificationCenter defaultCenter] postNotificationName:CDVLocalNotification object:notification];
 }
+
+/*-(void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
+    
+    NSLog(@"Did Receive Local Notification Delegate - Beacons");
+    
+    if(notification != nil){
+        NSDictionary *userInfo = notification.userInfo;
+        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
+        
+        if( siteURL)
+            [[UIApplication sharedApplication] openURL:siteURL];
+        else{
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
+        }
+    }
+}*/
 
 -(void)beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
@@ -111,6 +129,7 @@ ESTBeaconManager *knewbeaconManager;
             notification.alertBody =[beacondata objectForKey:@"enterMessage"];
             notification.soundName = UILocalNotificationDefaultSoundName;
             [beacondata setValue:@"inside" forKey:@"state"];
+            [beacondata setValue:@"true" forKey:@"openedFromNotification"];   
             //set up user info dicionary
             NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
             [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
@@ -143,6 +162,7 @@ ESTBeaconManager *knewbeaconManager;
             notification.alertBody = [beacondata objectForKey:@"exitMessage"];
             notification.soundName = UILocalNotificationDefaultSoundName;
             [beacondata setValue:@"outside" forKey:@"state"];
+            [beacondata setValue:@"true" forKey:@"openedFromNotification"];
             //set up user info dicionary
             NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
             [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];

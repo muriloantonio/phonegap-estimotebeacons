@@ -246,7 +246,7 @@
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(didReceiveLocalNotification:)
-                                                 name:@"CDVLocalNotification"
+                                                 name:@"CDVLocalNotificationBeacon"
                                                object:nil];
 }
 
@@ -352,6 +352,7 @@
 }
 
 - (void)didReceiveLocalNotification: (NSNotification *)notification {
+    NSLog(@"didReceiveLocalNotification by Notification Center");
     UILocalNotification *castedotification = notification.object;
     NSDictionary *userInfo = castedotification.userInfo;
     if([userInfo objectForKey:@"beacon.notification.data"] != nil)
@@ -361,19 +362,14 @@
 }
 
 - (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
+    NSLog(@"dispatchPush for region");
     NSData *json = [NSJSONSerialization dataWithJSONObject:region options:NSJSONWritingPrettyPrinted error:nil];
     NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
-    
-    /*NSString *jsStatement = [NSString
-     stringWithFormat:
-     @"cordova.require(\"cordova-plugin-estimote.EstimoteBeacons\").notificationCallback(%@);",
-     jsonString]; */
+
     NSString *jsStatement = [NSString
                              stringWithFormat:
-                             @"cordova.fireDocumentEvent(\"%@\", %@);",
+                             @"setTimeout( function() { cordova.fireDocumentEvent(\"%@\", {\"notificationData\": %@})}, 0);",
                              event, jsonString];
-    //[self.commandDelegate evalJs:WRITEJS(jsStatement)];
-    //     [self.commandDelegate evalJs:jsStatement];
     
     if (self.webView != nil) {
         [self.webView stringByEvaluatingJavaScriptFromString:jsStatement];
@@ -973,6 +969,7 @@
         NSMutableDictionary *Beacondata = [self getPlistData];
         NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
         [SelectedBeacon setValue:@"inside" forKey:@"state"];
+        [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
         [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-enter"];
     }
 	// Not used.
@@ -987,6 +984,7 @@
         NSMutableDictionary *Beacondata = [self getPlistData];
         NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
         [SelectedBeacon setValue:@"outside" forKey:@"state"];
+        [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
         [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-exit"];
     }
 }
