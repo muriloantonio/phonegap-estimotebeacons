@@ -14,6 +14,6 @@
 
 @property (strong, nonatomic) ESTBeaconManager *beaconManager;
 - (BOOL) beacons_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions;
-
+-(void) beacons_application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification;
 
 @end
