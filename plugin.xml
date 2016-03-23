@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plugin xmlns="http://cordova.apache.org/ns/plugins/1.0"
 	xmlns:android="http://schemas.android.com/apk/res/android"
-	id="cordova-plugin-estimote"
-	version="1.0.0">
+	id="cordova-plugin-estimote-os"
+	version="0.9.0">
 
 	<name>EstimoteBeacons (OutSystems)</name>
 	<description>Cordova/PhoneGap plugin for Estimote beacons.</description>

@@ -1,5 +1,30 @@
 # Change Log
 
+
+## Version 0.9.0 (March 23, 2016)
+
+Changes by OutSystems
+
+iOS updates:
+
+* Added a category to AppDelegate in order to receive enter/exit events from monitored regions.
+* Local notifications are mapped into default NSNoticationCenter and EstimotePlugin listens to default NSNotificationCenter
+* Registered monitored Regions are saved into a plist
+* Added the concept of NotificationRegion 
+* Added authorization request to use notifications in the application. 
+
+Android updates:
+* Update of Estimote Android SDK
+* Added the concept of NotificationRegion
+* Added a background service (BeaconsMonitoringService) to integrate with Estimote SDK, allowing for background monitoring of registered regions
+    * BeaconsMonitoringService is responsible for creating local notifications on entering/exiting a monitoring region OR for sending notification to WebView.
+    * BeaconsMonitoringService is enabled or disabled depending on the status of bluetooth adapter. 
+* Registered regions are saved on SQL-lite database. 
+
+Other updates:
+
+* Updated documentation
+
 ## Version 0.8.0 (Jul 25, 2015)
 
 iOS updates:

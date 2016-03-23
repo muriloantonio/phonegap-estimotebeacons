@@ -8,11 +8,6 @@ See file [changelog.md](changelog.md) for a list of all updates.
 
 ## JavaScript API documentation
 
-<!-- TODO: Update generated documentation.
-
-In addition to this document [JSDoc generated documentation](http://evomedia.evothings.com/jsdoc/phonegap-estimotebeacons/) is available. This is based on the documentation comments in file
-[EstimoteBeacons.js](plugin/src/js/EstimoteBeacons.js) -->
-
 File [EstimoteBeacons.js](plugin/src/js/EstimoteBeacons.js) contains documentation comments for JSDoc.
 
 ## Basic usage
@@ -41,7 +36,7 @@ Stickers ranging example:
 
 The plugin currently supports:
 
-* Monitoring beacons (iOS and Android)
+* Monitoring beacons with both application opened or closed. (iOS and Android)
 * Ranging for beacons (iOS and Android)
 * Scanning for beacons using CoreBluetooth (iOS)
 * Requesting authorization for ranging/monitoring beacons on iOS
@@ -59,7 +54,7 @@ Scanning is similar to ranging but uses a different underlying implementation th
 ### Start and stop monitoring beacons (iOS and Android)
 
     estimote.beacons.startMonitoringForRegion(
-       region,
+        region,
         successCallback,
         errorCallback)
 
@@ -68,14 +63,56 @@ Scanning is similar to ranging but uses a different underlying implementation th
         successCallback,
         errorCallback)
 
-Example:
+#### `Region` object structure
 
-    function onMonitoringSuccess(regionState) {
-        console.log('State is ' + regionState.state)
+    {
+        "major":        // Integer, 
+        "minor":        // Integer, 
+        "enterTitle":   // String, 
+        "enterMessage": // String, 
+        "exitTitle":    // String, 
+        "exitMessage":  // String, 
+        "deeplink":     // URL to be opened as a deeplink
     }
 
+Unlike `startRangingBeaconsInRegion`, the `successCalllback` won't be used as a channel through where 
+the native side notifies that the device entered or exited a specific monitored Region. Instead, events 
+are dispatched through `document`.
+
+In order to receive either enter or exit notifications, register event listeners for the following events:
+
+* `beacon-monitor-enter`
+* `beacon-monitor-exit`
+
+If the application was opened from clicking the notification, when 
+Both of this events hold a property named `notificationData` with the following structure:
+
+```javascript
+{
+    "major": // Integer, 
+    "minor": // Integer, 
+    "enterTitle": // String, 
+    "enterMessage": // String, 
+    "exitTitle": // String, 
+    "exitMessage": // String, 
+    "deeplink": // URL to be opened as a deeplink,
+    "state": // String with "inside" or "outside",
+    "openedFromNotification": // Boolean 
+}
+```
+
+Example:
+ 
+    document.addEventListener("beacon-monitor-enter", function(event) {
+        console.log(event.notificationData);
+    })}, false);
+    
+    document.addEventListener("beacon-monitor-exit", function(event) {
+        console.log(event.notificationData);
+    })}, false);
+    
     estimote.beacons.startMonitoringForRegion(
-       region,
+        region,
         onMonitoringSuccess,
         onError)
 
@@ -103,7 +140,7 @@ Example:
         onError)
 
 ### Start and stop scanning beacons (iOS only)
-
+  
     estimote.beacons.startEstimoteBeaconDiscovery(
         successCallback,
         errorCallback)
