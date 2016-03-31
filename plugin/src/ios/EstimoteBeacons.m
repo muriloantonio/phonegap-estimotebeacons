@@ -371,10 +371,15 @@
                              @"setTimeout( function() { cordova.fireDocumentEvent(\"%@\", {\"notificationData\": %@})}, 0);",
                              event, jsonString];
     
-    if (self.webView != nil) {
-        [self.webView stringByEvaluatingJavaScriptFromString:jsStatement];
+    if (self.webView && [self.webView isKindOfClass:[UIWebView class]]) {
+        UIWebView *uiWebView = (UIWebView*)self.webView;
+        [uiWebView stringByEvaluatingJavaScriptFromString:jsStatement];
     } else {
-        NSLog(@"webView is null");
+        if (self.webViewEngine) {
+            [self.webViewEngine evaluateJavaScript:jsStatement completionHandler:nil];
+        } else {
+            NSLog(@"webViewEngine is null");
+        }
     }
     
 
