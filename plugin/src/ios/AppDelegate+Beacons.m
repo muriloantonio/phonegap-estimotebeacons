@@ -7,6 +7,7 @@
 //
 
 #import "AppDelegate+Beacons.h"
+#import "BeaconsManager.h"
 
 ESTBeaconManager *knewbeaconManager;
 @implementation AppDelegate (Beacons)
@@ -86,6 +87,10 @@ ESTBeaconManager *knewbeaconManager;
         if( siteURL)
             [[UIApplication sharedApplication] openURL:siteURL];
         else{
+            //With this the events will be called on DeviceReady
+            //BeaconsManager *beaconManager = [BeaconsManager sharedManager];
+            //[beaconManager addNewNotification:notification];
+            
             [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
         }
     }

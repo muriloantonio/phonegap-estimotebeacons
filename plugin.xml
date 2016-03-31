@@ -66,6 +66,9 @@
         <header-file src="plugin/src/ios/AppDelegate+Beacons.h"/>
         <source-file src="plugin/src/ios/AppDelegate+Beacons.m"/>
 
+        <header-file src="plugin/src/ios/BeaconsManager.h"/>
+        <source-file src="plugin/src/ios/BeaconsManager.m"/>
+        
 		<config-file target="config.xml" parent="/*">
 			<feature name="EstimoteBeacons">
 				<param name="ios-package" value="EstimoteBeacons" />

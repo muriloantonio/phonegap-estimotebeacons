@@ -9,6 +9,7 @@
 #import <EstimoteSDK/ESTEddystone.h>
 #import <EstimoteSDK/ESTEddystoneManager.h>
 #import <CoreBluetooth/CoreBluetooth.h>
+#import "BeaconsManager.h"
 
 #import "EstimoteBeacons.h"
 
@@ -559,6 +560,24 @@
     
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:data];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (void) deviceReady:(CDVInvokedUrlCommand*) command {
+    NSLog(@"device ready.....");
+    
+    BeaconsManager *beaconsManager = [BeaconsManager sharedManager];
+    NSMutableArray *noti = beaconsManager.notifications;
+    
+    for (id localNotificationItem in noti) {
+        UILocalNotification *localNotification = localNotificationItem;
+        
+        NSDictionary *userInfo = localNotification.userInfo;
+        NSLog(@"Notifications...... %@", localNotification.userInfo);
+        [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
+        
+        //Remove notification dispatched
+        [beaconsManager removeNotification:localNotification];
+    }
 }
 
 /**
