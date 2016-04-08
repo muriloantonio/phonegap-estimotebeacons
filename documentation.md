@@ -68,6 +68,7 @@ Scanning is similar to ranging but uses a different underlying implementation th
     {
         "major":        // Integer, 
         "minor":        // Integer, 
+        "idle":		// Integer,
         "enterTitle":   // String, 
         "enterMessage": // String, 
         "exitTitle":    // String, 
@@ -91,6 +92,7 @@ Both of this events hold a property named `notificationData` with the following 
 {
     "major": // Integer, 
     "minor": // Integer, 
+    "idle":  //Inreger
     "enterTitle": // String, 
     "enterMessage": // String, 
     "exitTitle": // String, 
