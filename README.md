@@ -40,6 +40,7 @@ Documentation of all functions is available in the JavaScript API implementation
     - João Gonçalves, <joao.goncalves@outsystems.com>
     - Rúben Gonçalves, <ruben.goncalves@outsystems.com>
     - Vitor Oliveira, <vitor.oliveira@outsystems.com>
+    - Danilo Costa, <danilo.costa@outsystems.com>
 
 #### Document author
 - João Gonçalves, <joao.goncalves@outsystems.com>
