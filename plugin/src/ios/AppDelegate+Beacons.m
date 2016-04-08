@@ -117,32 +117,62 @@ ESTBeaconManager *knewbeaconManager;
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
     {
-
+        
         NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
         NSString *documentsDirectory = [paths objectAtIndex:0];
         NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
         NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    
+        
         NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-    
-        if([beacondata objectForKey:@"enterMessage"] != nil)
+        
+        if([beacondata objectForKey:@"enterMessage"] != nil ||![[beacondata objectForKey:@"exitMessage"]  isEqual: @""] )
+
         {
             UILocalNotification *notification = [[UILocalNotification alloc] init];
-            if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
-                notification.alertTitle = [beacondata objectForKey:@"enterTitle"];
+            
+            
+            NSDate *now =[NSDate date];
+            NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+            NSInteger mins = 0;
+            if(lastNotification != nil)
+            {
+                NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
+                long seconds = lroundf(distanceBetweenDates);
+                 mins = (seconds % 3600) / 60;
             }
-            notification.alertBody =[beacondata objectForKey:@"enterMessage"];
-            notification.soundName = UILocalNotificationDefaultSoundName;
-            [beacondata setValue:@"inside" forKey:@"state"];
-            [beacondata setValue:@"true" forKey:@"openedFromNotification"];   
-            //set up user info dicionary
-            NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
-            [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
-            [userInfoDict setValue:@"beacon-monitor-enter" forKey:@"event"];
-            if([beacondata objectForKey:@"deeplink"])
-                [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
-            notification.userInfo = userInfoDict;
-            [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+            else{mins = 9999999;}
+            
+            int verify = [[beacondata objectForKey:@"idle"] integerValue];
+           
+
+            if(verify == 0)
+                [beacondata setValue:0 forKey:@"idle"];
+            
+            if(mins >= verify || [beacondata objectForKey:@"idle"] == 0)
+            {
+                
+                
+                if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
+                    notification.alertTitle = [beacondata objectForKey:@"enterTitle"];
+                }
+                notification.alertBody =[beacondata objectForKey:@"enterMessage"];
+                notification.soundName = UILocalNotificationDefaultSoundName;
+                [beacondata setValue:@"inside" forKey:@"state"];
+                [beacondata setValue:@"true" forKey:@"openedFromNotification"];
+                //set up user info dicionary
+                NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
+                [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
+                [userInfoDict setValue:@"beacon-monitor-enter" forKey:@"event"];
+                if([beacondata objectForKey:@"deeplink"])
+                    [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
+                notification.userInfo = userInfoDict;
+                [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+                NSDate *nowregister = [NSDate date];
+                
+                [beacondata setValue:nowregister forKey:@"sentnotification"];
+                [myDictionary setObject:beacondata forKey:region.identifier];
+                [myDictionary writeToFile:path atomically:YES];
+            }
         }
     }
 }
@@ -156,26 +186,53 @@ ESTBeaconManager *knewbeaconManager;
         NSString *documentsDirectory = [paths objectAtIndex:0];
         NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
         NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    
+        
         NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-        if([beacondata objectForKey:@"exitMessage"] != nil)
+        if([beacondata objectForKey:@"exitMessage"] != nil ||![[beacondata objectForKey:@"exitMessage"]  isEqual: @""] )
         {
-            UILocalNotification *notification = [[UILocalNotification alloc] init];
-            if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
-                notification.alertTitle = [beacondata objectForKey:@"exitTitle"];
+            
+            NSDate *now =[NSDate date];
+            NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+            NSInteger mins = 0;
+            if(lastNotification != nil)
+            {
+                NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
+                long seconds = lroundf(distanceBetweenDates);
+                mins = (seconds % 3600) / 60;
+            } else{mins = 9999999;}
+            
+            
+            int verify = [[beacondata objectForKey:@"idle"] integerValue];
+            
+            if(verify == 0)
+                [beacondata setValue:0 forKey:@"idle"];
+            
+            if(mins >= verify || [beacondata objectForKey:@"idle"] == 0)
+            {
+                UILocalNotification *notification = [[UILocalNotification alloc] init];
+                if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
+                    notification.alertTitle = [beacondata objectForKey:@"exitTitle"];
+                }
+                notification.alertBody = [beacondata objectForKey:@"exitMessage"];
+                notification.soundName = UILocalNotificationDefaultSoundName;
+                [beacondata setValue:@"outside" forKey:@"state"];
+                [beacondata setValue:@"true" forKey:@"openedFromNotification"];
+                //set up user info dicionary
+                NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
+                [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
+                [userInfoDict setValue:@"beacon-monitor-exit" forKey:@"event"];
+                
+                if([beacondata objectForKey:@"deeplink"])
+                    [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
+                notification.userInfo = userInfoDict;
+                [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
+                
+                NSDate *nowregister = [NSDate date];
+                
+                [beacondata setValue:nowregister forKey:@"sentnotification"];
+                [myDictionary setObject:beacondata forKey:region.identifier];
+                [myDictionary writeToFile:path atomically:YES];
             }
-            notification.alertBody = [beacondata objectForKey:@"exitMessage"];
-            notification.soundName = UILocalNotificationDefaultSoundName;
-            [beacondata setValue:@"outside" forKey:@"state"];
-            [beacondata setValue:@"true" forKey:@"openedFromNotification"];
-            //set up user info dicionary
-            NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
-            [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
-            [userInfoDict setValue:@"beacon-monitor-exit" forKey:@"event"];
-            if([beacondata objectForKey:@"deeplink"])
-                [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
-            notification.userInfo = userInfoDict;
-            [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
         }
     }
 }
