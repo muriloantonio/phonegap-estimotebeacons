@@ -34,6 +34,7 @@ public class JSONUtils {
             jsonObject.put("exitMessage", notificationRegion.getExitMessage());
             jsonObject.put("deeplink", notificationRegion.getDeeplink());
             jsonObject.put("openedFromNotification", notificationRegion.isOpenedFromNotification());
+            jsonObject.put("idle", notificationRegion.getIdle());
         }
         return jsonObject;
     }
@@ -54,11 +55,31 @@ public class JSONUtils {
 
     /**
      * @param region
-     * @return JSON string representing the given region or null the region is null
+     * @return JSON string representing the given region or null if the region is null
      */
     public static String toJson(Region region) {
         try {
             final JSONObject obj = JSONUtils.toJSONObject(region);
+            if (obj != null) {
+                return obj.toString();
+            } else {
+                return null;
+            }
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+
+    /**
+     * @param region
+     * @return JSON string representing the given region or null if the region is null
+     */
+    public static String toDbJson(Region region) {
+        try {
+            final JSONObject obj = JSONUtils.toJSONObject(region);
+            if(region instanceof NotificationRegion) {
+                obj.put("lastNotificationTime", ((NotificationRegion)region).getLastNotificationTime());
+            }
             if (obj != null) {
                 return obj.toString();
             } else {
@@ -109,6 +130,8 @@ public class JSONUtils {
             String exitTitleTmp = obj.optString("exitTitle", "");
             String exitMessageTmp = obj.optString("exitMessage", "");
             String deeplink = obj.optString("deeplink", "");
+            int idle = obj.optInt("idle", 0);
+            long lastNotificationTime = obj.optLong("lastNotificationTime", 0);
 
             if (identifier != null && identifier.isEmpty()) {
                 identifier = JSONUtils.regionHashMapKey(proximityUUID, major, minor);
@@ -118,7 +141,9 @@ public class JSONUtils {
                     exitTitleTmp.isEmpty() && exitMessageTmp.isEmpty()) {
                 return new Region(identifier, proximityUUID, major, minor);
             } else {
-                return new NotificationRegion(identifier, proximityUUID, major, minor, enterMessageTmp, enterTitleTmp, exitMessageTmp, exitTitleTmp, deeplink);
+                NotificationRegion ret = new NotificationRegion(identifier, proximityUUID, major, minor, enterMessageTmp, enterTitleTmp, exitMessageTmp, exitTitleTmp, deeplink, idle);
+                ret.setLastNotificationTime(lastNotificationTime);
+                return ret;
             }
         } catch (JSONException e) {
             e.printStackTrace();

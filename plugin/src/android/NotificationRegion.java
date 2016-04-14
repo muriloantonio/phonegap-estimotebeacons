@@ -17,6 +17,9 @@ public class NotificationRegion extends Region implements Parcelable {
     private String enterMessage;
     private String exitMessage;
     private String deeplink;
+    private int idle;
+    private long lastNotificationTime;
+
     private boolean openedFromNotification;
 
     public String getDeeplink() {
@@ -39,26 +42,41 @@ public class NotificationRegion extends Region implements Parcelable {
         return exitTitle;
     }
 
+    public int getIdle() {
+        return idle;
+    }
+
+
     public void setOpenedFromNotification(boolean openedFromNotification) {
         this.openedFromNotification = openedFromNotification;
+    }
+
+    public long getLastNotificationTime() {
+        return lastNotificationTime;
+    }
+
+    public void setLastNotificationTime(long lastNotificationTime) {
+        this.lastNotificationTime = lastNotificationTime;
     }
 
     public boolean isOpenedFromNotification() {
         return openedFromNotification;
     }
 
-    public NotificationRegion(String identifier, UUID proximityUUID, Integer major, Integer minor, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink) {
+    public NotificationRegion(String identifier, UUID proximityUUID, Integer major, Integer minor, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink, int idle) {
         super(identifier, proximityUUID, major, minor);
         this.enterMessage = enterMessage;
         this.enterTitle = enterTitle;
         this.exitMessage = exitMessage;
         this.exitTitle = exitTitle;
         this.deeplink = deeplink;
+        this.idle = idle;
         this.openedFromNotification = false;
+        this.lastNotificationTime = 0;
     }
 
-    public NotificationRegion(Region region, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink) {
-        this(region.getIdentifier(), region.getProximityUUID(), region.getMajor(), region.getMinor(), enterMessage, enterTitle, exitMessage, exitTitle, deeplink);
+    public NotificationRegion(Region region, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink, int idle) {
+        this(region.getIdentifier(), region.getProximityUUID(), region.getMajor(), region.getMinor(), enterMessage, enterTitle, exitMessage, exitTitle, deeplink, idle);
     }
 
     @Override
@@ -69,6 +87,7 @@ public class NotificationRegion extends Region implements Parcelable {
 
         NotificationRegion that = (NotificationRegion) o;
 
+        if (idle != that.idle) return false;
         if (openedFromNotification != that.openedFromNotification) return false;
         if (enterTitle != null ? !enterTitle.equals(that.enterTitle) : that.enterTitle != null)
             return false;
@@ -90,6 +109,7 @@ public class NotificationRegion extends Region implements Parcelable {
         result = 31 * result + (enterMessage != null ? enterMessage.hashCode() : 0);
         result = 31 * result + (exitMessage != null ? exitMessage.hashCode() : 0);
         result = 31 * result + (deeplink != null ? deeplink.hashCode() : 0);
+        result = 31 * result + idle;
         result = 31 * result + (openedFromNotification ? 1 : 0);
         return result;
     }
@@ -102,6 +122,7 @@ public class NotificationRegion extends Region implements Parcelable {
         dest.writeString(enterMessage);
         dest.writeString(exitMessage);
         dest.writeString(deeplink);
+        dest.writeInt(idle);
     }
 
     @Override
@@ -118,7 +139,8 @@ public class NotificationRegion extends Region implements Parcelable {
             final String enterMessage = in.readString();
             final String exitMessage = in.readString();
             final String deeplink = in.readString();
-            return new NotificationRegion(tmpRegion, enterMessage, enterTitle, exitMessage, exitTitle, deeplink);
+            final int idle = in.readInt();
+            return new NotificationRegion(tmpRegion, enterMessage, enterTitle, exitMessage, exitTitle, deeplink, idle);
         }
 
         @Override

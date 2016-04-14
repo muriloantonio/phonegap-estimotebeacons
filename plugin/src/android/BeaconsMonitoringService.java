@@ -275,9 +275,10 @@ public class BeaconsMonitoringService extends Service {
         @Override
         public void onEnteredRegion(Region region, List<Beacon> list) {
             Log.d(TAG, System.identityHashCode(this) + " - onEnteredRegion start");
+            region = mRegionsStore.getRegion(region.getIdentifier());
             // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
-                region = mRegionsStore.getRegion(region.getIdentifier());
+
                 Message monitoringResponseMsg = Message.obtain(null, MSG_MONITOR_REGION_ON_ENTER);
                 monitoringResponseMsg.getData().putParcelable(MSG_KEY_MONITORING_RESULT, region);
                 try {
@@ -302,9 +303,10 @@ public class BeaconsMonitoringService extends Service {
         @Override
         public void onExitedRegion(Region region) {
             Log.d(TAG, System.identityHashCode(this) + " - onExitedRegion start");
+            region = mRegionsStore.getRegion(region.getIdentifier());
             // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
-                region = mRegionsStore.getRegion(region.getIdentifier());
+
                 Message monitoringResponseMsg = Message.obtain(null, MSG_MONITOR_REGION_ON_EXIT);
                 monitoringResponseMsg.getData().putParcelable(MSG_KEY_MONITORING_RESULT, region);
                 try {
@@ -386,6 +388,18 @@ public class BeaconsMonitoringService extends Service {
     private void postNotification(NotificationRegion notificationRegion, Boolean entering) {
         Intent notifyIntent = null;
 
+        if(notificationRegion.getIdle() > 0 && notificationRegion.getLastNotificationTime() > 0) {
+            // Elapsed time is in milliseconds
+            long elapsedMs = System.currentTimeMillis() - notificationRegion.getLastNotificationTime();
+            // Idle time is in minutes
+            long elapsedMinutes = TimeUnit.MILLISECONDS.toMinutes(elapsedMs);
+            // Do not show local notification if the elapsed time isn't higher than the idle time from
+            // the notification.
+            if(elapsedMinutes < notificationRegion.getIdle()) {
+                return;
+            }
+        }
+
         // Only notify if we have all the necessary information to show
         if(notificationRegion.getEnterTitle() != null && !notificationRegion.getEnterTitle().isEmpty()
                 && notificationRegion.getEnterMessage() != null && !notificationRegion.getEnterMessage().isEmpty()
@@ -412,6 +426,9 @@ public class BeaconsMonitoringService extends Service {
 
             Log.d(TAG, notifyIntent.toString());
 
+            // Update the time of the notification
+            notificationRegion.setLastNotificationTime(System.currentTimeMillis());
+            mRegionsStore.setRegion(notificationRegion);
 
             TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
             stackBuilder.addNextIntent(notifyIntent);

@@ -21,7 +21,7 @@ public class RegionsStore {
     }
 
     public void setRegion(Region region) {
-        String jsonRegion = JSONUtils.toJson(region);
+        String jsonRegion = JSONUtils.toDbJson(region);
         storage.setItem(region.getIdentifier(), jsonRegion);
     }
 
