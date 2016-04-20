@@ -64,7 +64,7 @@ estimote.beacons = estimote.beacons || {};
 
 /**
  * Namespace alias for estimote.beacons, for backwards compatibility.
- * Deprecated, use {@link estimote.beacons}
+ * Deprecated, use {@link estimote.beacons}
  * @deprecated
  * @global
  */
@@ -1970,6 +1970,20 @@ estimote.triggers.rules.nearableIsInRange = function()
 		rule.state = rule.notInRangeTracker < 5;
 	};
 };
+/**
+ * Get Last Log
+ */
+estimote.beacons.getLastEvent = function(success, error)
+{
+    return exec(success,error,'EstimoteBeacons','GetLastEvent');
+};
+/**
+ * Get All Log
+ */
+estimote.beacons.getAllEvents = function(success, error)
+{
+    return exec(success,error,'EstimoteBeacons','GetAllEvents');
+};
 
 /*********************************************************/
 /******************* Helper Functions ********************/
@@ -2100,6 +2114,8 @@ cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
 
 	}
 };
+
+
 
 channel.deviceready.subscribe(function() {
 	exec(null, null, 'EstimoteBeacons', 'deviceReady', []);

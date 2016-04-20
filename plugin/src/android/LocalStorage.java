@@ -28,7 +28,7 @@ public class LocalStorage {
         ArrayList<String> results = new ArrayList<String>();
         database = localStorageDBHelper.getReadableDatabase();
         Cursor cursor = database.query(
-                LocalStorageDBHelper.LOCALSTORAGE_TABLE_NAME, null, null, null,
+                LocalStorageDBHelper.BEACONS_TABLE_NAME, null, null, null,
                 null, null, null);
         while (cursor.moveToNext()) {
             results.add(cursor.getString(1));
@@ -50,8 +50,8 @@ public class LocalStorage {
         if (key != null) {
             database = localStorageDBHelper.getReadableDatabase();
             Cursor cursor = database.query(
-                    LocalStorageDBHelper.LOCALSTORAGE_TABLE_NAME, null,
-                    LocalStorageDBHelper.LOCALSTORAGE_ID + " = ?",
+                    LocalStorageDBHelper.BEACONS_TABLE_NAME, null,
+                    LocalStorageDBHelper.BEACONS_ID + " = ?",
                     new String[] { key }, null, null, null);
             if (cursor.moveToFirst()) {
                 value = cursor.getString(1);
@@ -74,14 +74,14 @@ public class LocalStorage {
             String oldValue = getItem(key);
             database = localStorageDBHelper.getWritableDatabase();
             ContentValues values = new ContentValues();
-            values.put(LocalStorageDBHelper.LOCALSTORAGE_ID, key);
+            values.put(LocalStorageDBHelper.BEACONS_ID, key);
             values.put(LocalStorageDBHelper.LOCALSTORAGE_VALUE, value);
             if (oldValue != null) {
-                database.update(LocalStorageDBHelper.LOCALSTORAGE_TABLE_NAME,
-                        values, LocalStorageDBHelper.LOCALSTORAGE_ID + "='"
+                database.update(LocalStorageDBHelper.BEACONS_TABLE_NAME,
+                        values, LocalStorageDBHelper.BEACONS_ID + "='"
                                 + key + "'", null);
             } else {
-                database.insert(LocalStorageDBHelper.LOCALSTORAGE_TABLE_NAME,
+                database.insert(LocalStorageDBHelper.BEACONS_TABLE_NAME,
                         null, values);
             }
             database.close();
@@ -96,8 +96,8 @@ public class LocalStorage {
     public void removeItem(String key) {
         if (key != null) {
             database = localStorageDBHelper.getWritableDatabase();
-            database.delete(LocalStorageDBHelper.LOCALSTORAGE_TABLE_NAME,
-                    LocalStorageDBHelper.LOCALSTORAGE_ID + "='" + key + "'",
+            database.delete(LocalStorageDBHelper.BEACONS_TABLE_NAME,
+                    LocalStorageDBHelper.BEACONS_ID + "='" + key + "'",
                     null);
             database.close();
         }
@@ -108,9 +108,8 @@ public class LocalStorage {
      */
     public void clear() {
         database = localStorageDBHelper.getWritableDatabase();
-        database.delete(LocalStorageDBHelper.LOCALSTORAGE_TABLE_NAME, null,
+        database.delete(LocalStorageDBHelper.BEACONS_TABLE_NAME, null,
                 null);
         database.close();
     }
-
 }

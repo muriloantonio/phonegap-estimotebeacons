@@ -47,6 +47,8 @@
 		<source-file src="plugin/src/android/LocalStorageDBHelper.java" target-dir="src/com/evothings" />
 		<source-file src="plugin/src/android/NotificationRegion.java" target-dir="src/com/evothings" />
 		<source-file src="plugin/src/android/RegionsStore.java" target-dir="src/com/evothings" />
+		<source-file src="plugin/src/android/History.java" target-dir="src/com/evothings" />
+		<source-file src="plugin/src/android/HistoryStore.java" target-dir="src/com/evothings" />
 
         <framework src="plugin/src/android/estimotesdk.gradle" custom="true" type="gradleReference" />
         <resource-file src="libs/estimote-sdk.aar" target="libs/estimote-sdk.aar"/>
