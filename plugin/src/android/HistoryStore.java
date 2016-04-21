@@ -70,7 +70,9 @@ public class HistoryStore {
         database = localStorageDBHelper.getReadableDatabase();
         Cursor cursor = database.query(LocalStorageDBHelper.HISTORY_TABLE_NAME,
                 null, null,
-                null, null, null, null);
+                null, null, null,
+                LocalStorageDBHelper.HISTORY_FIELD_TIME + " DESC",
+                "50");
         while (cursor.moveToNext()) {
             final String id = cursor.getString(0);
             final long timestamp = cursor.getLong(1);
