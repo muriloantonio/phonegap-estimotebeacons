@@ -364,7 +364,7 @@ CBCentralManagerDelegate >
     if([myDictionary count]>0)
     {
         NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-        [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+        [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
         NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
         
         for (NSMutableDictionary* key in myDictionary) {
@@ -387,10 +387,12 @@ CBCentralManagerDelegate >
             
         }
         NSArray * values = [completedici allValues];
+        NSRange endRange = NSMakeRange(values.count >= 50 ? values.count - 50 : 0, MIN(values.count, 50));
+        NSArray *last50Objects= [values subarrayWithRange:endRange];
         
         CDVPluginResult* result = [CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_OK
-                                   messageAsArray:values];
+                                   messageAsArray:last50Objects];
         
         [self.commandDelegate
          sendPluginResult:result
@@ -419,7 +421,7 @@ CBCentralManagerDelegate >
     if([LastDici count]>0)
     {
         NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-        [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+        [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
 
         NSString *dateStringnow = [formatter stringFromDate:[LastDici objectForKey:@"TimeStamp"]];
         
@@ -435,13 +437,14 @@ CBCentralManagerDelegate >
         }
         
         NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
-        [completedici setObject:LastDici forKey:@"LastLog"];
+        [completedici setObject:LastDici forKey:@"Last"];
         
+
         
         
         CDVPluginResult* result = [CDVPluginResult
                                    resultWithStatus:CDVCommandStatus_OK
-                                   messageAsDictionary:completedici];
+                                   messageAsDictionary:[completedici objectForKey:@"Last"]];
         
         [self.commandDelegate
          sendPluginResult:result
@@ -487,7 +490,7 @@ CBCentralManagerDelegate >
     NSLog(@"dispatchPush for region");
     
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
     
     if([region objectForKey:@"logHistory"])
     {
@@ -528,9 +531,7 @@ CBCentralManagerDelegate >
                 [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
                 [NewLog setObject:@"exit" forKey:@"Action"];
                 
-                NSString *dateString = [NSDateFormatter localizedStringFromDate:[NSDate date]
-                                                                      dateStyle:NSDateFormatterShortStyle
-                                                                      timeStyle:NSDateFormatterFullStyle];
+                NSString *dateString = [formatter stringFromDate:[NSDate date]];
                 
                 
                 NSArray *paths1 = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);

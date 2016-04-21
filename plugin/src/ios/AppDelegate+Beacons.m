@@ -114,7 +114,7 @@ ESTBeaconManager *knewbeaconManager;
 -(void)beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
     {
@@ -133,7 +133,7 @@ ESTBeaconManager *knewbeaconManager;
             {
                 //plist contains logs
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"RegionId"];
+                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"BeaconId"];
                 NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
                 [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
                 [NewLog setObject:@"enter" forKey:@"Action"];
@@ -153,7 +153,7 @@ ESTBeaconManager *knewbeaconManager;
                 //plist is empty
                 LogsHistoryDici = [[NSMutableDictionary alloc]init];
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"RegionId"];
+                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"BeaconId"];
                 NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
                 [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
                 [NewLog setObject:@"enter" forKey:@"Action"];
@@ -227,7 +227,7 @@ ESTBeaconManager *knewbeaconManager;
 -(void)beaconManager:(ESTBeaconManager *)manager didExitRegion:(CLBeaconRegion *)region
 {
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
     {
@@ -247,7 +247,7 @@ ESTBeaconManager *knewbeaconManager;
             {
                 //plist contains logs
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"RegionId"];
+                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"BeaconId"];
                 
                 NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
                 
@@ -271,7 +271,7 @@ ESTBeaconManager *knewbeaconManager;
                 //plist is empty
                 LogsHistoryDici = [[NSMutableDictionary alloc]init];
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"RegionId"];
+                [NewLog setObject:[beacondata objectForKey:@"uuid"] forKey:@"BeaconId"];
                 
                 NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
                 [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
