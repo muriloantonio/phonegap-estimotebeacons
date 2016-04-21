@@ -43,7 +43,7 @@ public class History {
     public String getFormattedDate() {
         Date date = new Date(timeStamp * 1000L);
         //yyyy-MM-dd'T'HH:mm:ss.SSSZ
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
         sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
         return sdf.format(date);
     }
