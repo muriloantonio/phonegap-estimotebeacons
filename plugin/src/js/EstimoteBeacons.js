@@ -1970,19 +1970,20 @@ estimote.triggers.rules.nearableIsInRange = function()
 		rule.state = rule.notInRangeTracker < 5;
 	};
 };
+
 /**
  * Get Last Log
  */
 estimote.beacons.getLastEvent = function(success, error)
 {
-    return exec(success,error,'EstimoteBeacons','GetLastEvent');
+    return exec(success,error,'EstimoteBeacons','GetLastEvent', []);
 };
 /**
  * Get All Log
  */
 estimote.beacons.getAllEvents = function(success, error)
 {
-    return exec(success,error,'EstimoteBeacons','GetAllEvents');
+    return exec(success,error,'EstimoteBeacons','GetAllEvents', []);
 };
 
 /*********************************************************/
