@@ -400,55 +400,60 @@ public class BeaconsMonitoringService extends Service {
             }
         }
 
+
         // Only notify if we have all the necessary information to show
-        if(notificationRegion.getEnterTitle() != null && !notificationRegion.getEnterTitle().isEmpty()
-                && notificationRegion.getEnterMessage() != null && !notificationRegion.getEnterMessage().isEmpty()
-                && notificationRegion.getExitTitle() != null && !notificationRegion.getExitTitle().isEmpty()
-                && notificationRegion.getExitMessage() != null && !notificationRegion.getExitMessage().isEmpty()) {
-
-            Context context = getApplicationContext();
-            String packageName = context.getPackageName();
-
-            notifyIntent = context.getPackageManager()
-                    .getLaunchIntentForPackage(packageName);
-
-            if(notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
-                notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
-            } else {
-                notificationRegion.setOpenedFromNotification(true);
-                notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
-                notifyIntent.putExtra("beacons.notification.inside", entering);
-            }
-
-            if (notifyIntent == null) {
-                return;
-            }
-
-            Log.d(TAG, notifyIntent.toString());
-
-            // Update the time of the notification
-            notificationRegion.setLastNotificationTime(System.currentTimeMillis());
-            mRegionsStore.setRegion(notificationRegion);
-
-            TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
-            stackBuilder.addNextIntent(notifyIntent);
-            PendingIntent pendingIntent = stackBuilder.getPendingIntent(
-                    0, PendingIntent.FLAG_UPDATE_CURRENT);
-
-            // Set message depending entering or exit...
-            Notification notification = new Notification.Builder(BeaconsMonitoringService.this)
-                    .setSmallIcon(R.drawable.icon)
-                    .setContentTitle(entering ? notificationRegion.getEnterTitle() : notificationRegion.getExitTitle())
-                    .setContentText(entering ? notificationRegion.getEnterMessage() : notificationRegion.getExitMessage())
-                    .setAutoCancel(true)
-                    .setContentIntent(pendingIntent)
-                    .build();
-
-            notification.defaults |= Notification.DEFAULT_SOUND;
-            notification.defaults |= Notification.DEFAULT_LIGHTS;
-
-            mNotificationManager.notify(NOTIFICATION_TAG, notificationRegion.hashCode(), notification);
+        if(entering && !(notificationRegion.getEnterTitle() != null && !notificationRegion.getEnterTitle().isEmpty()
+                && notificationRegion.getEnterMessage() != null && !notificationRegion.getEnterMessage().isEmpty())) {
+            return;
         }
+
+        if(!entering && !(notificationRegion.getExitTitle() != null && !notificationRegion.getExitTitle().isEmpty()
+                && notificationRegion.getExitMessage() != null && !notificationRegion.getExitMessage().isEmpty())) {
+            return;
+        }
+
+        Context context = getApplicationContext();
+        String packageName = context.getPackageName();
+
+        notifyIntent = context.getPackageManager()
+                .getLaunchIntentForPackage(packageName);
+
+        if(notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
+            notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
+        } else {
+            notificationRegion.setOpenedFromNotification(true);
+            notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
+            notifyIntent.putExtra("beacons.notification.inside", entering);
+        }
+
+        if (notifyIntent == null) {
+            return;
+        }
+
+        Log.d(TAG, notifyIntent.toString());
+
+        // Update the time of the notification
+        notificationRegion.setLastNotificationTime(System.currentTimeMillis());
+        mRegionsStore.setRegion(notificationRegion);
+
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
+        stackBuilder.addNextIntent(notifyIntent);
+        PendingIntent pendingIntent = stackBuilder.getPendingIntent(
+                0, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        // Set message depending entering or exit...
+        Notification notification = new Notification.Builder(BeaconsMonitoringService.this)
+                .setSmallIcon(R.drawable.icon)
+                .setContentTitle(entering ? notificationRegion.getEnterTitle() : notificationRegion.getExitTitle())
+                .setContentText(entering ? notificationRegion.getEnterMessage() : notificationRegion.getExitMessage())
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build();
+
+        notification.defaults |= Notification.DEFAULT_SOUND;
+        notification.defaults |= Notification.DEFAULT_LIGHTS;
+
+        mNotificationManager.notify(NOTIFICATION_TAG, notificationRegion.hashCode(), notification);
     }
 
     private Intent createLaunchIntent(NotificationRegion notificationRegion) {
