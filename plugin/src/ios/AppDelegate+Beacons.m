@@ -124,15 +124,19 @@ ESTBeaconManager *knewbeaconManager;
         NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
         
         NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-        
-        if([beacondata objectForKey:@"enterMessage"] != nil ||![[beacondata objectForKey:@"exitMessage"]  isEqual: @""] )
-
+        NSString *enterMessage = [beacondata objectForKey:@"enterMessage"];
+        if(enterMessage.length > 0)
         {
             UILocalNotification *notification = [[UILocalNotification alloc] init];
             
             
             NSDate *now =[NSDate date];
-            NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+            //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+            NSString *strLastNotification = [beacondata objectForKey:@"sentnotification"];
+            NSDate *lastNotification = [formatter dateFromString:strLastNotification];
+            
             NSInteger mins = 0;
             if(lastNotification != nil)
             {
@@ -167,9 +171,13 @@ ESTBeaconManager *knewbeaconManager;
                     [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
                 notification.userInfo = userInfoDict;
                 [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
-                NSDate *nowregister = [NSDate date];
+                //NSDate *nowregister = [NSDate date];
                 
-                [beacondata setValue:nowregister forKey:@"sentnotification"];
+                NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+                [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+                NSString *dateString = [formatter stringFromDate:[NSDate date]];
+                
+                [beacondata setValue:dateString forKey:@"sentnotification"];
                 [myDictionary setObject:beacondata forKey:region.identifier];
                 [myDictionary writeToFile:path atomically:YES];
             }
@@ -188,18 +196,26 @@ ESTBeaconManager *knewbeaconManager;
         NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
         
         NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-        if([beacondata objectForKey:@"exitMessage"] != nil ||![[beacondata objectForKey:@"exitMessage"]  isEqual: @""] )
+        NSString *exitMessage = [beacondata objectForKey:@"exitMessage"];
+        if(exitMessage.length > 0)
         {
             
             NSDate *now =[NSDate date];
-            NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+            
+            //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+            NSString *strLastNotification = [beacondata objectForKey:@"sentnotification"];
+            NSDate *lastNotification = [formatter dateFromString:strLastNotification];
             NSInteger mins = 0;
             if(lastNotification != nil)
             {
                 NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
                 long seconds = lroundf(distanceBetweenDates);
                 mins = (seconds % 3600) / 60;
-            } else{mins = 9999999;}
+            } else{
+                mins = 9999999;
+            }
             
             
             int verify = [[beacondata objectForKey:@"idle"] integerValue];
@@ -227,9 +243,15 @@ ESTBeaconManager *knewbeaconManager;
                 notification.userInfo = userInfoDict;
                 [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
                 
-                NSDate *nowregister = [NSDate date];
+               // NSDate *nowregister = [NSDate date];
                 
-                [beacondata setValue:nowregister forKey:@"sentnotification"];
+                NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+                [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+                NSString *dateString = [formatter stringFromDate:[NSDate date]];
+                
+                [beacondata setValue:dateString forKey:@"sentnotification"];
+                
+                //[beacondata setValue:nowregister forKey:@"sentnotification"];
                 [myDictionary setObject:beacondata forKey:region.identifier];
                 [myDictionary writeToFile:path atomically:YES];
             }
