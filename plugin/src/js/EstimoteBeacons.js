@@ -2085,6 +2085,11 @@ cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
 		console.log("EstimoteBeaconsStaticChannel success");
 		if(data !== undefined) {
 			var notificationData = {"notificationData" : data};
+			
+			if(data.openedFromNotification === true) {
+				estimote.beacons.localNotificationData = notificationData;
+            }
+			
 			switch(data.state) {
 
 				case "inside":
