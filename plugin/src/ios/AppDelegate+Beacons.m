@@ -94,6 +94,8 @@ ESTBeaconManager *knewbeaconManager;
             [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
         }
     }
+    
+    [self beacons_application:application didReceiveLocalNotification:notification];
 }
 
 /*-(void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
