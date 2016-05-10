@@ -232,7 +232,14 @@ public class EstimoteBeacons extends CordovaPlugin
 
 	private void deviceReady(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
         Intent intent = cordova.getActivity().getIntent();
-        Intent launcherIntent = intent.getParcelableExtra("LAUNCHER_INTENT");
+        Intent launcherIntent = null;
+
+		if (intent != null && intent.hasExtra("LAUNCHER_INTENT")) {
+			launcherIntent = intent.getParcelableExtra("LAUNCHER_INTENT");
+		} else {
+            launcherIntent = intent;
+        }
+
         if (launcherIntent != null) {
 
             String data = launcherIntent.getStringExtra("beacons.notification.data");
@@ -242,6 +249,8 @@ public class EstimoteBeacons extends CordovaPlugin
 					final JSONObject jsonObject = new JSONObject(data);
 					jsonObject.put("state", inside ? "inside" : "outside");
 					sendMonitoringUpdateToWebView(jsonObject);
+                    launcherIntent.removeExtra("beacons.notification.data");
+                    launcherIntent.removeExtra("beacons.notification.inside");
 				} catch (JSONException e) {
 
 				}

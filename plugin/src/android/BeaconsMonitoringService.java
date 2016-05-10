@@ -418,13 +418,14 @@ public class BeaconsMonitoringService extends Service {
         notifyIntent = context.getPackageManager()
                 .getLaunchIntentForPackage(packageName);
 
+
         if(notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
             notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
-        } else {
-            notificationRegion.setOpenedFromNotification(true);
-            notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
-            notifyIntent.putExtra("beacons.notification.inside", entering);
         }
+
+        notificationRegion.setOpenedFromNotification(true);
+        notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
+        notifyIntent.putExtra("beacons.notification.inside", entering);
 
         if (notifyIntent == null) {
             return;
