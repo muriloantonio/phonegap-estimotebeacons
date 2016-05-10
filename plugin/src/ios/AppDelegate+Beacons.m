@@ -84,15 +84,12 @@ ESTBeaconManager *knewbeaconManager;
         NSDictionary *userInfo = notification.userInfo;
         NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
         
-        if( siteURL)
-            [[UIApplication sharedApplication] openURL:siteURL];
-        else{
-            //With this the events will be called on DeviceReady
-            //BeaconsManager *beaconManager = [BeaconsManager sharedManager];
-            //[beaconManager addNewNotification:notification];
-            
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
+        if(siteURL && [userInfo objectForKey:@"deeplink"] && ![[userInfo objectForKey:@"deeplink"] isEqualToString:@""]) {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                [[UIApplication sharedApplication] openURL:siteURL];
+            });
         }
+        [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
     }
     
     [self beacons_application:application didReceiveLocalNotification:notification];
