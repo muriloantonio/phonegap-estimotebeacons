@@ -95,22 +95,6 @@ ESTBeaconManager *knewbeaconManager;
     [self beacons_application:application didReceiveLocalNotification:notification];
 }
 
-/*-(void) application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
-    
-    NSLog(@"Did Receive Local Notification Delegate - Beacons");
-    
-    if(notification != nil){
-        NSDictionary *userInfo = notification.userInfo;
-        NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
-        
-        if( siteURL)
-            [[UIApplication sharedApplication] openURL:siteURL];
-        else{
-            [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
-        }
-    }
-}*/
-
 -(void)beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
