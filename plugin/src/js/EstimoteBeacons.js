@@ -106,24 +106,24 @@ estimote.triggers.rules = estimote.triggers.rules || {};
  */
 estimote.printObject = function(obj, printFun)
 {
-	if (!printFun) { printFun = console.log; }
-	function print(obj, level)
-	{
-		var indent = new Array(level + 1).join('  ');
-		for (var prop in obj) {
-			if (obj.hasOwnProperty(prop)) {
-				var value = obj[prop];
-				if (typeof value == 'object') {
-					printFun(indent + prop + ':');
-					print(value, level + 1);
-				}
-				else {
-					printFun(indent + prop + ': ' + value);
-				}
-			}
-		}
-	}
-	print(obj, 0);
+    if (!printFun) { printFun = console.log; }
+    function print(obj, level)
+    {
+        var indent = new Array(level + 1).join('  ');
+        for (var prop in obj) {
+            if (obj.hasOwnProperty(prop)) {
+                var value = obj[prop];
+                if (typeof value == 'object') {
+                    printFun(indent + prop + ':');
+                    print(value, level + 1);
+                }
+                else {
+                    printFun(indent + prop + ': ' + value);
+                }
+            }
+        }
+    }
+    print(obj, 0);
 };
 
 /*********************************************************/
@@ -151,14 +151,14 @@ estimote.printObject = function(obj, printFun)
  */
 estimote.bluetoothState = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'bluetooth_bluetoothState',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'bluetooth_bluetoothState',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /*********************************************************/
@@ -295,14 +295,14 @@ estimote.beacons.RegionStateInside = 'inside';
  */
 estimote.beacons.requestWhenInUseAuthorization = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_requestWhenInUseAuthorization',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_requestWhenInUseAuthorization',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -322,14 +322,14 @@ estimote.beacons.requestWhenInUseAuthorization = function(success, error)
  */
 estimote.beacons.requestAlwaysAuthorization = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_requestAlwaysAuthorization',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_requestAlwaysAuthorization',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -355,18 +355,18 @@ estimote.beacons.requestAlwaysAuthorization = function(success, error)
  */
 estimote.beacons.authorizationStatus = function(success, error)
 {
-	if (!checkExecParamsSuccessError(success, error)) {
-		return false;
-	}
+    if (!checkExecParamsSuccessError(success, error)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_authorizationStatus',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_authorizationStatus',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -391,16 +391,16 @@ estimote.beacons.authorizationStatus = function(success, error)
  *       console.log('Error starting beacon: ' + errorMessage) })
  */
 estimote.beacons.startAdvertisingAsBeacon = function(
-	uuid, major, minor, regionId, success, error)
+    uuid, major, minor, regionId, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_startAdvertisingAsBeacon',
-		[uuid, major, minor, regionId]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_startAdvertisingAsBeacon',
+        [uuid, major, minor, regionId]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -418,14 +418,14 @@ estimote.beacons.startAdvertisingAsBeacon = function(
  */
 estimote.beacons.stopAdvertisingAsBeacon = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_stopAdvertisingAsBeacon',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_stopAdvertisingAsBeacon',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -442,14 +442,14 @@ estimote.beacons.stopAdvertisingAsBeacon = function(success, error)
  */
 estimote.beacons.enableAnalytics = function(enable, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_enableAnalytics',
-		[enable]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_enableAnalytics',
+        [enable]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -470,14 +470,14 @@ estimote.beacons.enableAnalytics = function(enable, success, error)
  */
 estimote.beacons.isAnalyticsEnabled = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_isAnalyticsEnabled',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_isAnalyticsEnabled',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -498,14 +498,14 @@ estimote.beacons.isAnalyticsEnabled = function(success, error)
  */
 estimote.beacons.isAuthorized = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_isAuthorized',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_isAuthorized',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -523,14 +523,14 @@ estimote.beacons.isAuthorized = function(success, error)
  */
 estimote.beacons.setupAppIDAndAppToken = function(appID, appToken, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_setupAppIDAndAppToken',
-		[appID, appToken]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_setupAppIDAndAppToken',
+        [appID, appToken]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -601,13 +601,13 @@ estimote.beacons.setupAppIDAndAppToken = function(appID, appToken, success, erro
  */
 estimote.beacons.startEstimoteBeaconDiscovery = function(success, error)
 {	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_startEstimoteBeaconDiscovery',
-		[]
-	);
+        error,
+        'EstimoteBeacons',
+        'beacons_startEstimoteBeaconDiscovery',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -622,14 +622,14 @@ estimote.beacons.startEstimoteBeaconDiscovery = function(success, error)
  */
 estimote.beacons.stopEstimoteBeaconDiscovery = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_stopEstimoteBeaconDiscovery',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_stopEstimoteBeaconDiscovery',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -654,18 +654,18 @@ estimote.beacons.stopEstimoteBeaconDiscovery = function(success, error)
  */
 estimote.beacons.startRangingBeaconsInRegion = function(region, success, error)
 {
-	if (!checkExecParamsRegionSuccessError(region, success, error)) {
-		return false;
-	}
+    if (!checkExecParamsRegionSuccessError(region, success, error)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_startRangingBeaconsInRegion',
-		[region]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_startRangingBeaconsInRegion',
+        [region]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -681,18 +681,18 @@ estimote.beacons.startRangingBeaconsInRegion = function(region, success, error)
  */
 estimote.beacons.stopRangingBeaconsInRegion = function(region, success, error)
 {
-	if (!checkExecParamsRegion(region)) {
-		return false;
-	}
+    if (!checkExecParamsRegion(region)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_stopRangingBeaconsInRegion',
-		[region]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_stopRangingBeaconsInRegion',
+        [region]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -704,18 +704,18 @@ estimote.beacons.stopRangingBeaconsInRegion = function(region, success, error)
  */
 estimote.beacons.startRangingSecureBeaconsInRegion = function(region, success, error)
 {
-	if (!checkExecParamsRegionSuccessError(region, success, error)) {
-		return false;
-	}
+    if (!checkExecParamsRegionSuccessError(region, success, error)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_startRangingSecureBeaconsInRegion',
-		[region]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_startRangingSecureBeaconsInRegion',
+        [region]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -725,18 +725,18 @@ estimote.beacons.startRangingSecureBeaconsInRegion = function(region, success, e
  */
 estimote.beacons.stopRangingSecureBeaconsInRegion = function(region, success, error)
 {
-	if (!checkExecParamsRegion(region)) {
-		return false;
-	}
+    if (!checkExecParamsRegion(region)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_stopRangingSecureBeaconsInRegion',
-		[region]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_stopRangingSecureBeaconsInRegion',
+        [region]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -765,20 +765,20 @@ estimote.beacons.stopRangingSecureBeaconsInRegion = function(region, success, er
  *       console.log('Monitoring error: ' + errorMessage) })
  */
 estimote.beacons.startMonitoringForRegion = function(
-	region, success, error, notifyEntryStateOnDisplay)
+    region, success, error, notifyEntryStateOnDisplay)
 {
-	if (!checkExecParamsRegionSuccessError(region, success, error)) {
-		return false;
-	}
+    if (!checkExecParamsRegionSuccessError(region, success, error)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_startMonitoringForRegion',
-		[region, !!notifyEntryStateOnDisplay]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_startMonitoringForRegion',
+        [region, !!notifyEntryStateOnDisplay]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -794,18 +794,18 @@ estimote.beacons.startMonitoringForRegion = function(
  */
 estimote.beacons.stopMonitoringForRegion = function (region, success, error)
 {
-	if (!checkExecParamsRegion(region)) {
-		return false;
-	}
+    if (!checkExecParamsRegion(region)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_stopMonitoringForRegion',
-		[region]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_stopMonitoringForRegion',
+        [region]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -817,20 +817,20 @@ estimote.beacons.stopMonitoringForRegion = function (region, success, error)
  * @see {@link estimote.beacons.startMonitoringForRegion}
  */
 estimote.beacons.startSecureMonitoringForRegion = function(
-	region, success, error, notifyEntryStateOnDisplay)
+    region, success, error, notifyEntryStateOnDisplay)
 {
-	if (!checkExecParamsRegionSuccessError(region, success, error)) {
-		return false;
-	}
+    if (!checkExecParamsRegionSuccessError(region, success, error)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_startSecureMonitoringForRegion',
-		[region, !!notifyEntryStateOnDisplay]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_startSecureMonitoringForRegion',
+        [region, !!notifyEntryStateOnDisplay]
+    );
 
-	return true;
+    return true;
 };
 
 
@@ -841,18 +841,18 @@ estimote.beacons.startSecureMonitoringForRegion = function(
  */
 estimote.beacons.stopSecureMonitoringForRegion = function (region, success, error)
 {
-	if (!checkExecParamsRegion(region)) {
-		return false;
-	}
+    if (!checkExecParamsRegion(region)) {
+        return false;
+    }
 
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'beacons_stopSecureMonitoringForRegion',
-		[region]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'beacons_stopSecureMonitoringForRegion',
+        [region]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -885,7 +885,7 @@ estimote.beacons.connectToBeacon = function (beacon, success, error)
     [beacon]
   );
 
-	return true;
+    return true;
 };
 
 /**
@@ -970,6 +970,18 @@ estimote.beacons.writeConnectedMinor = function (minor, success, error) {
     'beacons_writeConnectedMinor',
     [minor]
   );
+};
+
+/**
+ *
+ */
+estimote.beacons.getOpenedFromNotificationData = function() {
+    if(localNotificationData !== undefined) {
+        var clonedData = JSON.parse(JSON.stringify(localNotificationData));
+        localNotificationData = undefined;
+        return clonedData;
+    }
+    return undefined;
 };
 
 /*********************************************************/
@@ -1196,14 +1208,14 @@ estimote.nearables.NearableColorLemonTart = 6;
  */
 estimote.nearables.startRangingForIdentifier = function(identifier, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_startRangingForIdentifier',
-		[identifier]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_startRangingForIdentifier',
+        [identifier]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1219,14 +1231,14 @@ estimote.nearables.startRangingForIdentifier = function(identifier, success, err
  */
 estimote.nearables.stopRangingForIdentifier = function(identifier, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_stopRangingForIdentifier',
-		[identifier]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_stopRangingForIdentifier',
+        [identifier]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1253,14 +1265,14 @@ estimote.nearables.stopRangingForIdentifier = function(identifier, success, erro
  */
 estimote.nearables.startRangingForType = function(type, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_startRangingForType',
-		[type]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_startRangingForType',
+        [type]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1277,14 +1289,14 @@ estimote.nearables.startRangingForType = function(type, success, error)
  */
 estimote.nearables.stopRangingForType = function(type, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_stopRangingForType',
-		[type]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_stopRangingForType',
+        [type]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1299,14 +1311,14 @@ estimote.nearables.stopRangingForType = function(type, success, error)
  */
 estimote.nearables.stopRanging = function(success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_stopRanging',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_stopRanging',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1333,14 +1345,14 @@ estimote.nearables.stopRanging = function(success, error)
  */
 estimote.nearables.startMonitoringForIdentifier = function (identifier, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_startMonitoringForIdentifier',
-		[identifier]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_startMonitoringForIdentifier',
+        [identifier]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1356,14 +1368,14 @@ estimote.nearables.startMonitoringForIdentifier = function (identifier, success,
  */
 estimote.nearables.stopMonitoringForIdentifier = function (identifier, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_stopMonitoringForIdentifier',
-		[identifier]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_stopMonitoringForIdentifier',
+        [identifier]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1389,14 +1401,14 @@ estimote.nearables.stopMonitoringForIdentifier = function (identifier, success, 
  */
 estimote.nearables.startMonitoringForType = function (type, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_startMonitoringForType',
-		[type]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_startMonitoringForType',
+        [type]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1413,14 +1425,14 @@ estimote.nearables.startMonitoringForType = function (type, success, error)
  */
 estimote.nearables.stopMonitoringForType = function (type, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_stopMonitoringForType',
-		[type]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_stopMonitoringForType',
+        [type]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1435,14 +1447,14 @@ estimote.nearables.stopMonitoringForType = function (type, success, error)
  */
 estimote.nearables.stopMonitoring = function (success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'nearables_stopMonitoring',
-		[]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'nearables_stopMonitoring',
+        []
+    );
 
-	return true;
+    return true;
 };
 
 /*********************************************************/
@@ -1516,22 +1528,22 @@ var ruleCounter = 0;
  */
 function helper_createTriggerObject(trigger)
 {
-	var triggerObject = {};
+    var triggerObject = {};
 
-	triggerObject.triggerIdentifier = trigger.identifier;
+    triggerObject.triggerIdentifier = trigger.identifier;
 
-	triggerObject.rules = [];
-	for (var i = 0; i < trigger.rules.length; ++i)
-	{
-		var rule = trigger.rules[i];
-		triggerObject.rules.push({
-			ruleType: rule.ruleType,
-			ruleIdentifier: rule.ruleIdentifier,
-			nearableIdentifier: rule.nearableIdentifier,
-			nearableType: rule.nearableType });
-	}
+    triggerObject.rules = [];
+    for (var i = 0; i < trigger.rules.length; ++i)
+    {
+        var rule = trigger.rules[i];
+        triggerObject.rules.push({
+            ruleType: rule.ruleType,
+            ruleIdentifier: rule.ruleIdentifier,
+            nearableIdentifier: rule.nearableIdentifier,
+            nearableType: rule.nearableType });
+    }
 
-	return triggerObject;
+    return triggerObject;
 }
 
 /**
@@ -1541,15 +1553,15 @@ function helper_createTriggerObject(trigger)
  */
 function helper_updateTriggerRule(trigger, event)
 {
-	var rule = trigger.ruleTable[event.ruleIdentifier];
-	if (rule && rule.ruleUpdateFunction)
-	{
-		rule.ruleUpdateFunction(rule, event.nearable, event);
-		helper_updateRuleState(
-			event.triggerIdentifier,
-			event.ruleIdentifier,
-			rule.state);
-	}
+    var rule = trigger.ruleTable[event.ruleIdentifier];
+    if (rule && rule.ruleUpdateFunction)
+    {
+        rule.ruleUpdateFunction(rule, event.nearable, event);
+        helper_updateRuleState(
+            event.triggerIdentifier,
+            event.ruleIdentifier,
+            rule.state);
+    }
 }
 
 /**
@@ -1561,12 +1573,12 @@ function helper_updateTriggerRule(trigger, event)
  */
 function helper_updateRuleState(triggerIdentifier, ruleIdentifier, state)
 {
-	exec(null,
-		null,
-		'EstimoteBeacons',
-		'triggers_updateRuleState',
-		[triggerIdentifier, ruleIdentifier, state]
-	);
+    exec(null,
+        null,
+        'EstimoteBeacons',
+        'triggers_updateRuleState',
+        [triggerIdentifier, ruleIdentifier, state]
+    );
 }
 
 // For interactive debugging.
@@ -1585,21 +1597,21 @@ function helper_updateRuleState(triggerIdentifier, ruleIdentifier, state)
  */
 estimote.triggers.createTrigger = function(triggerIdentifier, rules)
 {
-	var trigger = {};
+    var trigger = {};
 
-	trigger.state = false;
-	trigger.identifier = triggerIdentifier;
-	trigger.rules = rules;
+    trigger.state = false;
+    trigger.identifier = triggerIdentifier;
+    trigger.rules = rules;
 
-	// Create table for rule ids for quick lookup.
-	trigger.ruleTable = {};
-	for (var i = 0; i < rules.length; ++i)
-	{
-		var rule = rules[i];
-		trigger.ruleTable[rule.ruleIdentifier] = rule;
-	}
+    // Create table for rule ids for quick lookup.
+    trigger.ruleTable = {};
+    for (var i = 0; i < rules.length; ++i)
+    {
+        var rule = rules[i];
+        trigger.ruleTable[rule.ruleIdentifier] = rule;
+    }
 
-	return trigger;
+    return trigger;
 };
 
 /**
@@ -1617,12 +1629,12 @@ estimote.triggers.createTrigger = function(triggerIdentifier, rules)
  */
 estimote.triggers.createRule = function(ruleUpdateFunction)
 {
-	var rule = {};
-	rule.state = false;
-	rule.ruleType = estimote.triggers.RuleTypeGeneric;
-	rule.ruleUpdateFunction = ruleUpdateFunction;
-	rule.ruleIdentifier = 'Rule' + (++ruleCounter);
-	return rule;
+    var rule = {};
+    rule.state = false;
+    rule.ruleType = estimote.triggers.RuleTypeGeneric;
+    rule.ruleUpdateFunction = ruleUpdateFunction;
+    rule.ruleIdentifier = 'Rule' + (++ruleCounter);
+    return rule;
 };
 
 /**
@@ -1650,26 +1662,26 @@ estimote.triggers.createRule = function(ruleUpdateFunction)
  *       estimote.triggers.rules.nearableIsMoving())
  */
 estimote.triggers.createRuleForNearable = function(
-	nearableIdentifierOrType, ruleUpdateFunction)
+    nearableIdentifierOrType, ruleUpdateFunction)
 {
-	var rule = estimote.triggers.createRule(ruleUpdateFunction);
+    var rule = estimote.triggers.createRule(ruleUpdateFunction);
 
-	if (typeof nearableIdentifierOrType == 'string')
-	{
-		rule.ruleType = estimote.triggers.RuleTypeNearableIdentifier;
-		rule.nearableIdentifier = nearableIdentifierOrType;
-	}
-	else if (typeof nearableIdentifierOrType == 'number')
-	{
-		rule.ruleType = estimote.triggers.RuleTypeNearableType;
-		rule.nearableType = nearableIdentifierOrType;
-	}
-	else
-	{
-		return null;
-	}
+    if (typeof nearableIdentifierOrType == 'string')
+    {
+        rule.ruleType = estimote.triggers.RuleTypeNearableIdentifier;
+        rule.nearableIdentifier = nearableIdentifierOrType;
+    }
+    else if (typeof nearableIdentifierOrType == 'number')
+    {
+        rule.ruleType = estimote.triggers.RuleTypeNearableType;
+        rule.nearableType = nearableIdentifierOrType;
+    }
+    else
+    {
+        return null;
+    }
 
-	return rule;
+    return rule;
 };
 
 /**
@@ -1686,22 +1698,22 @@ estimote.triggers.createRuleForNearable = function(
  */
 estimote.triggers.createRuleForInRangeOfNearable = function(nearableIdentifierOrType)
 {
-	var rule = estimote.triggers.createRuleForNearable(
-		nearableIdentifierOrType,
-		null);
+    var rule = estimote.triggers.createRuleForNearable(
+        nearableIdentifierOrType,
+        null);
 
-	if (typeof nearableIdentifierOrType == 'string')
-	{
-		rule.ruleType = estimote.triggers.RuleTypeInRangeOfNearableIdentifier;
-		rule.nearableIdentifier = nearableIdentifierOrType;
-	}
-	else if (typeof nearableIdentifierOrType == 'number')
-	{
-		rule.ruleType = estimote.triggers.RuleTypeInRangeOfNearableType;
-		rule.nearableType = nearableIdentifierOrType;
-	}
+    if (typeof nearableIdentifierOrType == 'string')
+    {
+        rule.ruleType = estimote.triggers.RuleTypeInRangeOfNearableIdentifier;
+        rule.nearableIdentifier = nearableIdentifierOrType;
+    }
+    else if (typeof nearableIdentifierOrType == 'number')
+    {
+        rule.ruleType = estimote.triggers.RuleTypeInRangeOfNearableType;
+        rule.nearableType = nearableIdentifierOrType;
+    }
 
-	return rule;
+    return rule;
 };
 
 /**
@@ -1718,22 +1730,22 @@ estimote.triggers.createRuleForInRangeOfNearable = function(nearableIdentifierOr
  */
 estimote.triggers.createRuleForOutsideRangeOfNearable = function(nearableIdentifierOrType)
 {
-	var rule = estimote.triggers.createRuleForNearable(
-		nearableIdentifierOrType,
-		null);
+    var rule = estimote.triggers.createRuleForNearable(
+        nearableIdentifierOrType,
+        null);
 
-	if (typeof nearableIdentifierOrType == 'string')
-	{
-		rule.ruleType = estimote.triggers.RuleTypeOutsideRangeOfNearableIdentifier;
-		rule.nearableIdentifier = nearableIdentifierOrType;
-	}
-	else if (typeof nearableIdentifierOrType == 'number')
-	{
-		rule.ruleType = estimote.triggers.RuleTypeOutsideRangeOfNearableType;
-		rule.nearableType = nearableIdentifierOrType;
-	}
+    if (typeof nearableIdentifierOrType == 'string')
+    {
+        rule.ruleType = estimote.triggers.RuleTypeOutsideRangeOfNearableIdentifier;
+        rule.nearableIdentifier = nearableIdentifierOrType;
+    }
+    else if (typeof nearableIdentifierOrType == 'number')
+    {
+        rule.ruleType = estimote.triggers.RuleTypeOutsideRangeOfNearableType;
+        rule.nearableType = nearableIdentifierOrType;
+    }
 
-	return rule;
+    return rule;
 };
 
 /**
@@ -1786,34 +1798,34 @@ estimote.triggers.createRuleForOutsideRangeOfNearable = function(nearableIdentif
  *       onTriggerError)
  */
 estimote.triggers.startMonitoringForTrigger = function(
-	trigger, triggerCallback, errorCallback)
+    trigger, triggerCallback, errorCallback)
 {
-	function internalCallback(event)
-	{
-		if (event.triggerIdentifier == trigger.identifier)
-		{
-			if ('triggerChangedState' == event.eventType)
-			{
-				trigger.state = event.triggerState;
-				triggerCallback(trigger);
-			}
-			else if ('update' == event.eventType)
-			{
-				helper_updateTriggerRule(trigger, event);
-			}
-		}
-	}
+    function internalCallback(event)
+    {
+        if (event.triggerIdentifier == trigger.identifier)
+        {
+            if ('triggerChangedState' == event.eventType)
+            {
+                trigger.state = event.triggerState;
+                triggerCallback(trigger);
+            }
+            else if ('update' == event.eventType)
+            {
+                helper_updateTriggerRule(trigger, event);
+            }
+        }
+    }
 
-	var triggerObject = helper_createTriggerObject(trigger);
+    var triggerObject = helper_createTriggerObject(trigger);
 
-	exec(internalCallback,
-		errorCallback,
-		'EstimoteBeacons',
-		'triggers_startMonitoringForTrigger',
-		[triggerObject]
-	);
+    exec(internalCallback,
+        errorCallback,
+        'EstimoteBeacons',
+        'triggers_startMonitoringForTrigger',
+        [triggerObject]
+    );
 
-	return true;
+    return true;
 };
 
 /**
@@ -1828,14 +1840,14 @@ estimote.triggers.startMonitoringForTrigger = function(
  */
 estimote.triggers.stopMonitoringForTrigger = function(trigger, success, error)
 {
-	exec(success,
-		error,
-		'EstimoteBeacons',
-		'triggers_stopMonitoringForTrigger',
-		[trigger.identifier]
-	);
+    exec(success,
+        error,
+        'EstimoteBeacons',
+        'triggers_stopMonitoringForTrigger',
+        [trigger.identifier]
+    );
 
-	return true;
+    return true;
 };
 
 /*********************************************************/
@@ -1847,9 +1859,9 @@ estimote.triggers.stopMonitoringForTrigger = function(trigger, success, error)
  */
 estimote.triggers.rules.nearableIsMoving = function()
 {
-	return function(rule, nearable) {
-		rule.state = nearable && nearable.isMoving;
-	};
+    return function(rule, nearable) {
+        rule.state = nearable && nearable.isMoving;
+    };
 };
 
 /**
@@ -1857,9 +1869,9 @@ estimote.triggers.rules.nearableIsMoving = function()
  */
 estimote.triggers.rules.nearableIsNotMoving = function()
 {
-	return function(rule, nearable) {
-		rule.state = nearable && !nearable.isMoving;
-	};
+    return function(rule, nearable) {
+        rule.state = nearable && !nearable.isMoving;
+    };
 };
 
 /**
@@ -1869,12 +1881,12 @@ estimote.triggers.rules.nearableIsNotMoving = function()
  */
 estimote.triggers.rules.nearableTemperatureBetween = function(low, high)
 {
-	return function(rule, nearable) {
-		rule.state =
-			nearable &&
-			(nearable.temperature >= low) &&
-			(nearable.temperature <= high);
-	};
+    return function(rule, nearable) {
+        rule.state =
+            nearable &&
+            (nearable.temperature >= low) &&
+            (nearable.temperature <= high);
+    };
 };
 
 /**
@@ -1883,11 +1895,11 @@ estimote.triggers.rules.nearableTemperatureBetween = function(low, high)
  */
 estimote.triggers.rules.nearableTemperatureLowerThan = function(temp)
 {
-	return function(rule, nearable) {
-		rule.state =
-			nearable &&
-			(nearable.temperature < temp);
-	};
+    return function(rule, nearable) {
+        rule.state =
+            nearable &&
+            (nearable.temperature < temp);
+    };
 };
 
 /**
@@ -1896,12 +1908,12 @@ estimote.triggers.rules.nearableTemperatureLowerThan = function(temp)
  */
 estimote.triggers.rules.nearableTemperatureGreaterThan = function(temp)
 {
-	return function(rule, nearable) {
-	console.log('nearable.temperature :' + nearable.temperature);
-		rule.state =
-			nearable &&
-			(nearable.temperature > temp);
-	};
+    return function(rule, nearable) {
+    console.log('nearable.temperature :' + nearable.temperature);
+        rule.state =
+            nearable &&
+            (nearable.temperature > temp);
+    };
 };
 
 /**
@@ -1909,33 +1921,33 @@ estimote.triggers.rules.nearableTemperatureGreaterThan = function(temp)
  */
 estimote.triggers.rules.nearableIsClose = function()
 {
-	return function(rule, nearable, event)
-	{
-		if (!nearable)
-		{
-			// Nearable is undefined and out of range.
-			rule.state = false;
-			return;
-		}
+    return function(rule, nearable, event)
+    {
+        if (!nearable)
+        {
+            // Nearable is undefined and out of range.
+            rule.state = false;
+            return;
+        }
 
-		// We track values where the nerable is not close.
-		// If we get more than five of them in a row the nearble
-		// is not considered close anymore.
+        // We track values where the nerable is not close.
+        // If we get more than five of them in a row the nearble
+        // is not considered close anymore.
 
-		if (!rule.notCloseTracker) { rule.notCloseTracker = 0; }
+        if (!rule.notCloseTracker) { rule.notCloseTracker = 0; }
 
-		if (nearable.zone != estimote.nearables.NearableZoneImmediate &&
-			nearable.zone != estimote.nearables.NearableZoneNear)
-		{
-			++rule.notCloseTracker;
-		}
-		else
-		{
-			rule.notCloseTracker = 0;
-		}
+        if (nearable.zone != estimote.nearables.NearableZoneImmediate &&
+            nearable.zone != estimote.nearables.NearableZoneNear)
+        {
+            ++rule.notCloseTracker;
+        }
+        else
+        {
+            rule.notCloseTracker = 0;
+        }
 
-		rule.state = rule.notCloseTracker < 5;
-	};
+        rule.state = rule.notCloseTracker < 5;
+    };
 };
 
 /**
@@ -1943,32 +1955,32 @@ estimote.triggers.rules.nearableIsClose = function()
  */
 estimote.triggers.rules.nearableIsInRange = function()
 {
-	return function(rule, nearable, event)
-	{
-		if (!nearable)
-		{
-			// Nearable is undefined and out of range.
-			rule.state = false;
-			return;
-		}
+    return function(rule, nearable, event)
+    {
+        if (!nearable)
+        {
+            // Nearable is undefined and out of range.
+            rule.state = false;
+            return;
+        }
 
-		// We track values where the nerable is not in range.
-		// If we get more than five of them in a row the nearble
-		// is not considered in range any more.
+        // We track values where the nerable is not in range.
+        // If we get more than five of them in a row the nearble
+        // is not considered in range any more.
 
-		if (!rule.notInRangeTracker) { rule.notInRangeTracker = 0; }
+        if (!rule.notInRangeTracker) { rule.notInRangeTracker = 0; }
 
-		if (nearable.zone == estimote.nearables.NearableZoneUnknown)
-		{
-			++rule.notInRangeTracker;
-		}
-		else
-		{
-			rule.notInRangeTracker = 0;
-		}
+        if (nearable.zone == estimote.nearables.NearableZoneUnknown)
+        {
+            ++rule.notInRangeTracker;
+        }
+        else
+        {
+            rule.notInRangeTracker = 0;
+        }
 
-		rule.state = rule.notInRangeTracker < 5;
-	};
+        rule.state = rule.notInRangeTracker < 5;
+    };
 };
 
 /*********************************************************/
@@ -1981,7 +1993,7 @@ estimote.triggers.rules.nearableIsInRange = function()
  */
 function isString(value)
 {
-	return (typeof value == 'string' || value instanceof String);
+    return (typeof value == 'string' || value instanceof String);
 }
 
 /**
@@ -1990,8 +2002,8 @@ function isString(value)
  */
 function isInt(value)
 {
-	return !isNaN(parseInt(value, 10)) &&
-		(parseFloat(value, 10) == parseInt(value, 10));
+    return !isNaN(parseInt(value, 10)) &&
+        (parseFloat(value, 10) == parseInt(value, 10));
 }
 
 /**
@@ -2000,24 +2012,24 @@ function isInt(value)
  */
 function checkExecParamsRegionSuccessError(region, success, error)
 {
-	var caller = checkExecParamsRegionSuccessError.caller.name;
+    var caller = checkExecParamsRegionSuccessError.caller.name;
 
-	if (typeof region != 'object') {
-		console.error('Error: region parameter is not an object in: ' + caller);
-		return false;
-	}
+    if (typeof region != 'object') {
+        console.error('Error: region parameter is not an object in: ' + caller);
+        return false;
+    }
 
-	if (typeof success != 'function') {
-		console.error('Error: success parameter is not a function in: ' + caller);
-		return false;
-	}
+    if (typeof success != 'function') {
+        console.error('Error: success parameter is not a function in: ' + caller);
+        return false;
+    }
 
-	if (typeof error != 'function') {
-		console.error('Error: error parameter is not a function in: ' + caller);
-		return false;
-	}
+    if (typeof error != 'function') {
+        console.error('Error: error parameter is not a function in: ' + caller);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 /**
@@ -2026,19 +2038,19 @@ function checkExecParamsRegionSuccessError(region, success, error)
  */
 function checkExecParamsSuccessError(success, error)
 {
-	var caller = checkExecParamsSuccessError.caller.name;
+    var caller = checkExecParamsSuccessError.caller.name;
 
-	if (typeof success != 'function') {
-		console.error('Error: success parameter is not a function in: ' + caller);
-		return false;
-	}
+    if (typeof success != 'function') {
+        console.error('Error: success parameter is not a function in: ' + caller);
+        return false;
+    }
 
-	if (typeof error != 'function') {
-		console.error('Error: error parameter is not a function in: ' + caller);
-		return false;
-	}
+    if (typeof error != 'function') {
+        console.error('Error: error parameter is not a function in: ' + caller);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 /**
@@ -2047,65 +2059,65 @@ function checkExecParamsSuccessError(success, error)
  */
 function checkExecParamsRegion(region)
 {
-	var caller = checkExecParamsRegion.caller.name;
+    var caller = checkExecParamsRegion.caller.name;
 
-	if (typeof region != 'object') {
-		console.error('Error: region parameter is not an object in: ' + caller);
-		return false;
-	}
+    if (typeof region != 'object') {
+        console.error('Error: region parameter is not an object in: ' + caller);
+        return false;
+    }
 
-	return true;
+    return true;
 }
 
 channel.createSticky('onBeaconsServiceReady');
 channel.waitForInitialization('onBeaconsServiceReady');
 
-var timerId = null;
-var timeout = 500;
 
 channel.onCordovaReady.subscribe(function() {
-	exec( function(data) {
-		if(data.ready === true) {
-			console.log("Init Service called and successfully initialized");
-			if(channel.onBeaconsServiceReady.state !== 2) {
-				channel.onBeaconsServiceReady.fire();
-			}
-		}
-	},
-	function(){
-		console.log("Error initializing service...");
-		if(channel.onBeaconsServiceReady.state !== 2) {
-			channel.onBeaconsServiceReady.fire();
-		}
-	}, 'EstimoteBeacons', 'initService', []);
+    exec( function(data) {
+        if(data.ready === true) {
+            console.log("Init Service called and successfully initialized");
+            if(channel.onBeaconsServiceReady.state !== 2) {
+                channel.onBeaconsServiceReady.fire();
+            }
+        }
+    },
+    function(){
+        console.log("Error initializing service...");
+        if(channel.onBeaconsServiceReady.state !== 2) {
+            channel.onBeaconsServiceReady.fire();
+        }
+    }, 'EstimoteBeacons', 'initService', []);
 });
 
+var localNotificationData;
+
 cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
-	success: function(data) {
-		console.log("EstimoteBeaconsStaticChannel success");
-		if(data !== undefined) {
-			var notificationData = {"notificationData" : data};
-			
-			if(data.openedFromNotification === true) {
-				estimote.beacons.localNotificationData = notificationData;
+    success: function(data) {
+        console.log("EstimoteBeaconsStaticChannel success");
+        if(data !== undefined) {
+            var notificationData = {"notificationData" : data};
+
+            if(data.openedFromNotification === true) {
+                localNotificationData = notificationData;
             }
-			
-			switch(data.state) {
 
-				case "inside":
-					cordova.fireDocumentEvent("beacon-monitor-enter", notificationData);
-					break;
-				case "outside":
-					cordova.fireDocumentEvent("beacon-monitor-exit", notificationData);
-					break;
-			}
-		}
-	},
-	fail: function() {
+            switch(data.state) {
 
-	}
+                case "inside":
+                    cordova.fireDocumentEvent("beacon-monitor-enter", notificationData);
+                    break;
+                case "outside":
+                    cordova.fireDocumentEvent("beacon-monitor-exit", notificationData);
+                    break;
+            }
+        }
+    },
+    fail: function() {
+
+    }
 };
 
 channel.deviceready.subscribe(function() {
-	exec(null, null, 'EstimoteBeacons', 'deviceReady', []);
+    exec(null, null, 'EstimoteBeacons', 'deviceReady', []);
 });
