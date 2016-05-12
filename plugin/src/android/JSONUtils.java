@@ -23,7 +23,7 @@ public class JSONUtils {
         }
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("identifier", region.getIdentifier());
-        jsonObject.put("proximityUUID", region.getProximityUUID());
+        jsonObject.put("uuid", region.getProximityUUID());
         jsonObject.put("major", region.getMajor());
         jsonObject.put("minor", region.getMinor());
         if (region instanceof NotificationRegion) {
@@ -102,7 +102,7 @@ public class JSONUtils {
 
             String identifier = obj.optString("identifier");
 
-            String tmpProximityUUID = obj.isNull("proximityUUID") ? null : obj.optString("proximityUUID", null);
+            String tmpProximityUUID = obj.isNull("uuid") ? null : obj.optString("uuid", null);
 
             // Proximity UUID
 

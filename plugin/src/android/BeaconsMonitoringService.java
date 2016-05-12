@@ -276,6 +276,12 @@ public class BeaconsMonitoringService extends Service {
         public void onEnteredRegion(Region region, List<Beacon> list) {
             Log.d(TAG, System.identityHashCode(this) + " - onEnteredRegion start");
             region = mRegionsStore.getRegion(region.getIdentifier());
+
+            if(region instanceof NotificationRegion) {
+                if(isInIdleTime((NotificationRegion) region))
+                    return;
+            }
+
             // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
 
@@ -297,6 +303,13 @@ public class BeaconsMonitoringService extends Service {
                 }
             }
 
+            if(region instanceof NotificationRegion) {
+                // Update the time of the notification
+                NotificationRegion notificationRegion = (NotificationRegion) region;
+                notificationRegion.setLastNotificationTime(System.currentTimeMillis());
+                mRegionsStore.setRegion(notificationRegion);
+            }
+
             Log.d(TAG, System.identityHashCode(this) + " - onEnteredRegion end");
         }
 
@@ -304,6 +317,12 @@ public class BeaconsMonitoringService extends Service {
         public void onExitedRegion(Region region) {
             Log.d(TAG, System.identityHashCode(this) + " - onExitedRegion start");
             region = mRegionsStore.getRegion(region.getIdentifier());
+
+            if(region instanceof NotificationRegion) {
+                if(isInIdleTime((NotificationRegion) region))
+                    return;
+            }
+
             // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
 
@@ -324,6 +343,14 @@ public class BeaconsMonitoringService extends Service {
                     Log.d(TAG, "Sent EXITED notification.");
                 }
             }
+
+            if(region instanceof NotificationRegion) {
+                // Update the time of the notification
+                NotificationRegion notificationRegion = (NotificationRegion) region;
+                notificationRegion.setLastNotificationTime(System.currentTimeMillis());
+                mRegionsStore.setRegion(notificationRegion);
+            }
+
             Log.d(TAG, System.identityHashCode(this) + " - onExitedRegion end");
         }
     }
@@ -385,9 +412,7 @@ public class BeaconsMonitoringService extends Service {
         }
     }
 
-    private void postNotification(NotificationRegion notificationRegion, Boolean entering) {
-        Intent notifyIntent = null;
-
+    private boolean isInIdleTime(NotificationRegion notificationRegion) {
         if(notificationRegion.getIdle() > 0 && notificationRegion.getLastNotificationTime() > 0) {
             // Elapsed time is in milliseconds
             long elapsedMs = System.currentTimeMillis() - notificationRegion.getLastNotificationTime();
@@ -396,10 +421,15 @@ public class BeaconsMonitoringService extends Service {
             // Do not show local notification if the elapsed time isn't higher than the idle time from
             // the notification.
             if(elapsedMinutes < notificationRegion.getIdle()) {
-                return;
+                return true;
             }
         }
 
+        return false;
+    }
+
+    private void postNotification(NotificationRegion notificationRegion, Boolean entering) {
+        Intent notifyIntent = null;
 
         // Only notify if we have all the necessary information to show
         if(entering && !(notificationRegion.getEnterTitle() != null && !notificationRegion.getEnterTitle().isEmpty()
@@ -418,13 +448,14 @@ public class BeaconsMonitoringService extends Service {
         notifyIntent = context.getPackageManager()
                 .getLaunchIntentForPackage(packageName);
 
+
         if(notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
             notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
-        } else {
-            notificationRegion.setOpenedFromNotification(true);
-            notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
-            notifyIntent.putExtra("beacons.notification.inside", entering);
         }
+
+        notificationRegion.setOpenedFromNotification(true);
+        notifyIntent.putExtra("beacons.notification.data", JSONUtils.toJson(notificationRegion));
+        notifyIntent.putExtra("beacons.notification.inside", entering);
 
         if (notifyIntent == null) {
             return;
@@ -432,9 +463,6 @@ public class BeaconsMonitoringService extends Service {
 
         Log.d(TAG, notifyIntent.toString());
 
-        // Update the time of the notification
-        notificationRegion.setLastNotificationTime(System.currentTimeMillis());
-        mRegionsStore.setRegion(notificationRegion);
 
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
         stackBuilder.addNextIntent(notifyIntent);
