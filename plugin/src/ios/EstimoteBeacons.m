@@ -367,12 +367,16 @@
     NSData *json = [NSJSONSerialization dataWithJSONObject:region options:NSJSONWritingPrettyPrinted error:nil];
     NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
 
-    NSString *jsStatement = [NSString
+    /*NSString *jsStatement = [NSString
                              stringWithFormat:
                              @"setTimeout( function() { cordova.fireDocumentEvent(\"%@\", {\"notificationData\": %@})}, 0);",
-                             event, jsonString];
+                             event, jsonString]; */
     
-    if (self.webView && [self.webView isKindOfClass:[UIWebView class]]) {
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:region];
+    [pluginResult setKeepCallbackAsBool:YES];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:@"EstimoteBeaconsStaticChannel"];
+    
+   /* if (self.webView && [self.webView isKindOfClass:[UIWebView class]]) {
         UIWebView *uiWebView = (UIWebView*)self.webView;
         [uiWebView stringByEvaluatingJavaScriptFromString:jsStatement];
     } else {
@@ -381,7 +385,7 @@
         } else {
             NSLog(@"webViewEngine is null");
         }
-    }
+    } */
     
 
 }
@@ -984,6 +988,41 @@
     return myDictionary;
 }
 
+// Helper to re-write the beacon data on plist file
+-(void) writeToPlistDictionarity: (NSMutableDictionary *) beaconData {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+    [beaconData writeToFile:path atomically:YES];
+}
+
+-(BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (int) idle {
+    NSDate *now =[NSDate date];
+    //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+    NSString *strLastNotification = lastNotificationDate;
+    NSDate *lastNotification = [formatter dateFromString:strLastNotification];
+    
+    NSInteger mins = 0;
+    if(lastNotification != nil)
+    {
+        NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
+        long seconds = lroundf(distanceBetweenDates);
+        mins = (seconds % 3600) / 60;
+    }
+    else{mins = 9999999;}
+    
+    int verify = idle;
+    
+    if(mins >= verify || verify == 0)
+    {
+        return YES;
+    }
+    
+    return NO;
+}
+
 - (void) beaconManager:(id)manager
 	didEnterRegion:(CLBeaconRegion *)region
 {
@@ -992,9 +1031,29 @@
     {
         NSMutableDictionary *Beacondata = [self getPlistData];
         NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
-        [SelectedBeacon setValue:@"inside" forKey:@"state"];
-        [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
-        [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-enter"];
+        
+        NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
+        int verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
+        BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
+        
+        if(verify == 0)
+            [SelectedBeacon setValue:0 forKey:@"idle"];
+        
+        if(resultIdleValidation)
+        {
+            [SelectedBeacon setValue:@"inside" forKey:@"state"];
+            [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
+            [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-enter"];
+            
+            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+            NSString *dateString = [formatter stringFromDate:[NSDate date]];
+            
+            [SelectedBeacon setValue:dateString forKey:@"sentnotification"];
+            
+            [Beacondata setObject:SelectedBeacon forKey:region.identifier];
+            [self writeToPlistDictionarity:Beacondata];
+        }
     }
 	// Not used.
 }
@@ -1007,9 +1066,39 @@
     {
         NSMutableDictionary *Beacondata = [self getPlistData];
         NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
-        [SelectedBeacon setValue:@"outside" forKey:@"state"];
-        [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
-        [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-exit"];
+        
+        NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
+        int verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
+        BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
+        
+        if(verify == 0)
+        [SelectedBeacon setValue:0 forKey:@"idle"];
+        
+        if(resultIdleValidation)
+        {
+            [SelectedBeacon setValue:@"outside" forKey:@"state"];
+            [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
+            [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-exit"];
+            
+            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+            NSString *dateString = [formatter stringFromDate:[NSDate date]];
+            
+            [SelectedBeacon setValue:dateString forKey:@"sentnotification"];
+            
+            
+            [Beacondata setObject:SelectedBeacon forKey:region.identifier];
+            [self writeToPlistDictionarity:Beacondata];
+            
+            //[beacondata setValue:nowregister forKey:@"sentnotification"];
+            
+            
+          /*  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+            NSString *documentsDirectory = [paths objectAtIndex:0];
+            NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+            [Beacondata writeToFile:path atomically:YES]; */
+
+        }
     }
 }
 

@@ -80,8 +80,9 @@ ESTBeaconManager *knewbeaconManager;
 -(void) beacons_application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
     NSLog(@"Did Receive Local Notification Delegate - Beacons");
     
-    if(notification != nil){
+    if(notification != nil && notification.userInfo && [notification.userInfo objectForKey:@"beacon.notification.data"]) {
         NSDictionary *userInfo = notification.userInfo;
+        
         NSURL *siteURL = [NSURL URLWithString:[userInfo objectForKey:@"deeplink"]];
         
         if(siteURL && [userInfo objectForKey:@"deeplink"] && ![[userInfo objectForKey:@"deeplink"] isEqualToString:@""]) {
@@ -241,5 +242,4 @@ ESTBeaconManager *knewbeaconManager;
         }
     }
 }
-
 @end
