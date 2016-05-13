@@ -11,14 +11,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.text.TextUtils;
 import android.util.Log;
 
 import android.bluetooth.BluetoothAdapter;
@@ -34,15 +32,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.InputStream;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.IllegalFormatException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -72,17 +67,27 @@ public class EstimoteBeacons extends CordovaPlugin
 	private CallbackContext   mBeaconConnectionCallback;
 	private CallbackContext   mBeaconDisconnectionCallback;
 
-	// todo: consider using pluginInitialize instead, per Cordova recommendation
-	//   https://github.com/apache/cordova-android/blob/master/framework/src/org/apache/cordova/CordovaPlugin.java#L60-L61
+
 	/**
-	 * Plugin initialiser.
+	 * Messenger to receive messages from service;
 	 */
-	@Override
-	public void initialize(final CordovaInterface cordova, CordovaWebView webView)
-	{
-		Log.i(LOGTAG, "initialize");
-		super.initialize(cordova, webView);
-	}
+	private Messenger mMessenger = null;
+
+	/**
+	 * Messenger to send messages to service
+	 */
+	private Messenger mServiceMessenger = null;
+	private boolean mBound = false;
+	private boolean mBeaconsServiceConnected = false;
+
+	/**
+	 * Broadcast receiver to bind to the service in case the application was opened but the service was not yet running.
+	 */
+	private ServiceReadyBroadcastReceiver mServiceReadyBroadcastReceiver = null;
+
+    private HistoryStore mHistoryStore = null;
+
+    private CallbackContext mInitServiceCallbackContext = null;
 
 	@Override
 	protected void pluginInitialize() {
@@ -110,6 +115,8 @@ public class EstimoteBeacons extends CordovaPlugin
         });
 
 		mRangedBeacons = new ArrayList<Beacon>();
+
+        mHistoryStore = new HistoryStore(this.cordova.getActivity());
 
 
 		doBindService();
@@ -214,15 +221,64 @@ public class EstimoteBeacons extends CordovaPlugin
 		}
 		else if("initService".equals(action)) {
 			initService(args, callbackContext);
-		} else if("deviceReady".equals(action)) {
+		}
+        else if("deviceReady".equals(action)) {
 			deviceReady(args, callbackContext);
-		} else {
+		}
+        else if("GetAllEvents".equals(action)) {
+            getAllEvents(args, callbackContext);
+        }
+        else if("GetLastEvent".equals(action)) {
+            getLastEvent(args, callbackContext);
+        }
+        else {
 			return false;
 		}
 		return true;
 	}
 
-	private CallbackContext mInitServiceCallbackContext = null;
+    private void getAllEvents(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
+        // Perhaps this should be refactored to retrieve this information from the service.
+        if (mHistoryStore != null) {
+            ArrayList<History> events = (ArrayList<History>) mHistoryStore.getAllHistoryEntries();
+            JSONArray result = new JSONArray();
+            for (History event : events) {
+                try{
+                    JSONObject jsonEvent = new JSONObject();
+                    jsonEvent.put("RegionId", event.getRegionIdentifier());
+                    jsonEvent.put("TimeStamp", event.getFormattedDate());
+                    jsonEvent.put("Action", event.getAction());
+                    result.put(jsonEvent);
+                } catch (JSONException e) {
+                    callbackContext.error("Failed to retrieve json.");
+                }
+            }
+            callbackContext.success(result);
+        } else {
+            callbackContext.error("Failed to retrieve data");
+        }
+    }
+
+    private void getLastEvent(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
+        // Perhaps this should be refactored to retrieve this information from the service.
+        if (mHistoryStore != null) {
+            History history = mHistoryStore.getLastEntry();
+            try{
+                JSONObject jsonEvent = new JSONObject();
+                jsonEvent.put("RegionId", history.getRegionIdentifier());
+                jsonEvent.put("TimeStamp", history.getFormattedDate());
+                jsonEvent.put("Action", history.getAction());
+                callbackContext.success(jsonEvent);
+                return;
+            } catch (JSONException e) {
+                callbackContext.error("Failed to retrieve json.");
+            }
+
+        } else {
+            callbackContext.error("Failed to retrieve data");
+        }
+    }
+
 
 	private boolean initService(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
 		mInitServiceCallbackContext = callbackContext;
@@ -1102,24 +1158,6 @@ public class EstimoteBeacons extends CordovaPlugin
 	//
 	//
 	//---------------------------------------
-
-
-	/**
-	 * Messenger to receive messages from service;
-	 */
-	private Messenger mMessenger = null;
-
-	/**
-	 * Messenger to send messages to service
-	 */
-	private Messenger mServiceMessenger = null;
-	private boolean mBound = false;
-	private boolean mBeaconsServiceConnected = false;
-
-	/**
-	 * Broadcast receiver to bind to the service in case the application was opened but the service was not yet running.
-	 */
-	private ServiceReadyBroadcastReceiver mServiceReadyBroadcastReceiver = null;
 
 	private class ServiceReadyBroadcastReceiver extends  BroadcastReceiver {
 		@Override

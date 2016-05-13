@@ -71,6 +71,7 @@ public class BeaconsMonitoringService extends Service {
     private boolean mIsBound;
 
     private RegionsStore mRegionsStore = null;
+    private HistoryStore mHistoryStore = null;
 
     /**
      *
@@ -95,6 +96,10 @@ public class BeaconsMonitoringService extends Service {
 
         if(mRegionsStore == null)
             mRegionsStore = new RegionsStore(this.getBaseContext());
+
+        if (mHistoryStore == null) {
+            mHistoryStore = new HistoryStore(this.getBaseContext());
+        }
 
         if (mMessenger == null) {
             mMessenger = new Messenger(new IncomingHandler(this));
@@ -276,40 +281,45 @@ public class BeaconsMonitoringService extends Service {
         public void onEnteredRegion(Region region, List<Beacon> list) {
             Log.d(TAG, System.identityHashCode(this) + " - onEnteredRegion start");
             region = mRegionsStore.getRegion(region.getIdentifier());
-
-            if(region instanceof NotificationRegion) {
+	    if(region instanceof NotificationRegion) {
                 if(isInIdleTime((NotificationRegion) region))
                     return;
             }
 
-            // If service is bound and we have a Messenger to ReplyTo then send message to it
+
+	    if(region instanceof NotificationRegion && ((NotificationRegion)region).logHistory()) {
+                NotificationRegion tmpRegion = (NotificationRegion) region;
+                long now = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+                History tmpHistory = new History(tmpRegion.getIdentifier(), now, History.ACTION_ENTER);
+                mHistoryStore.addHistoryEntry(tmpHistory);
+            } else {            
+	    // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
 
-                Message monitoringResponseMsg = Message.obtain(null, MSG_MONITOR_REGION_ON_ENTER);
-                monitoringResponseMsg.getData().putParcelable(MSG_KEY_MONITORING_RESULT, region);
-                try {
-                    BeaconsMonitoringService.this.mReplyTo.send(monitoringResponseMsg);
-                } catch (RemoteException e) {
-                    if(region instanceof NotificationRegion) {
+                    Message monitoringResponseMsg = Message.obtain(null, MSG_MONITOR_REGION_ON_ENTER);
+                    monitoringResponseMsg.getData().putParcelable(MSG_KEY_MONITORING_RESULT, region);
+                    try {
+                        BeaconsMonitoringService.this.mReplyTo.send(monitoringResponseMsg);
+                    } catch (RemoteException e) {
+                        if (region instanceof NotificationRegion) {
+                            postNotification((NotificationRegion) region, true);
+                            Log.d(TAG, "Sent ENTERED notification because replyTo is gone....");
+                        }
+                    }
+                    Log.d(TAG, "Sent ENTERED message to replyTo.");
+                } else {
+                    if (region instanceof NotificationRegion) {
                         postNotification((NotificationRegion) region, true);
-                        Log.d(TAG, "Sent ENTERED notification because replyTo is gone....");
+                        Log.d(TAG, "Sent ENTERED notification.");
                     }
                 }
-                Log.d(TAG, "Sent ENTERED message to replyTo.");
-            } else {
-                if(region instanceof NotificationRegion) {
-                    postNotification((NotificationRegion) region, true);
-                    Log.d(TAG, "Sent ENTERED notification.");
-                }
             }
-
             if(region instanceof NotificationRegion) {
                 // Update the time of the notification
                 NotificationRegion notificationRegion = (NotificationRegion) region;
                 notificationRegion.setLastNotificationTime(System.currentTimeMillis());
                 mRegionsStore.setRegion(notificationRegion);
             }
-
             Log.d(TAG, System.identityHashCode(this) + " - onEnteredRegion end");
         }
 
@@ -317,12 +327,16 @@ public class BeaconsMonitoringService extends Service {
         public void onExitedRegion(Region region) {
             Log.d(TAG, System.identityHashCode(this) + " - onExitedRegion start");
             region = mRegionsStore.getRegion(region.getIdentifier());
-
             if(region instanceof NotificationRegion) {
                 if(isInIdleTime((NotificationRegion) region))
                     return;
             }
-
+            if (region instanceof NotificationRegion && ((NotificationRegion) region).logHistory()) {
+                NotificationRegion tmpRegion = (NotificationRegion) region;
+                long now = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+                History tmpHistory = new History(tmpRegion.getIdentifier(), now, History.ACTION_EXIT);
+                mHistoryStore.addHistoryEntry(tmpHistory);
+            } else {
             // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
 
@@ -343,6 +357,7 @@ public class BeaconsMonitoringService extends Service {
                     Log.d(TAG, "Sent EXITED notification.");
                 }
             }
+            }
 
             if(region instanceof NotificationRegion) {
                 // Update the time of the notification
@@ -350,7 +365,6 @@ public class BeaconsMonitoringService extends Service {
                 notificationRegion.setLastNotificationTime(System.currentTimeMillis());
                 mRegionsStore.setRegion(notificationRegion);
             }
-
             Log.d(TAG, System.identityHashCode(this) + " - onExitedRegion end");
         }
     }
@@ -463,6 +477,9 @@ public class BeaconsMonitoringService extends Service {
 
         Log.d(TAG, notifyIntent.toString());
 
+            // Update the time of the notification
+            notificationRegion.setLastNotificationTime(System.currentTimeMillis());
+            mRegionsStore.setRegion(notificationRegion);
 
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
         stackBuilder.addNextIntent(notifyIntent);

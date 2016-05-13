@@ -1983,6 +1983,21 @@ estimote.triggers.rules.nearableIsInRange = function()
     };
 };
 
+/**
+ * Get Last Log
+ */
+estimote.beacons.getLastEvent = function(success, error)
+{
+    return exec(success,error,'EstimoteBeacons','GetLastEvent', []);
+};
+/**
+ * Get All Log
+ */
+estimote.beacons.getAllEvents = function(success, error)
+{
+    return exec(success,error,'EstimoteBeacons','GetAllEvents', []);
+};
+
 /*********************************************************/
 /******************* Helper Functions ********************/
 /*********************************************************/
@@ -2117,6 +2132,8 @@ cordova.callbacks["EstimoteBeaconsStaticChannel"] = {
 
     }
 };
+
+
 
 channel.deviceready.subscribe(function() {
     exec(null, null, 'EstimoteBeacons', 'deviceReady', []);
