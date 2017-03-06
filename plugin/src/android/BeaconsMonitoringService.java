@@ -22,7 +22,6 @@ import android.util.Log;
 import com.estimote.sdk.Beacon;
 import com.estimote.sdk.BeaconManager;
 import com.estimote.sdk.Region;
-import com.outsystems.android.R;
 
 import java.lang.ref.WeakReference;
 import java.util.HashSet;
@@ -471,7 +470,7 @@ public class BeaconsMonitoringService extends Service {
 
         // Set message depending entering or exit...
         Notification notification = new Notification.Builder(BeaconsMonitoringService.this)
-                .setSmallIcon(R.drawable.icon)
+                .setSmallIcon(context.getApplicationInfo().icon)
                 .setContentTitle(entering ? notificationRegion.getEnterTitle() : notificationRegion.getExitTitle())
                 .setContentText(entering ? notificationRegion.getEnterMessage() : notificationRegion.getExitMessage())
                 .setAutoCancel(true)
