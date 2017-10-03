@@ -280,19 +280,19 @@ public class BeaconsMonitoringService extends Service {
         public void onEnteredRegion(Region region, List<Beacon> list) {
             Log.d(TAG, System.identityHashCode(this) + " - onEnteredRegion start");
             region = mRegionsStore.getRegion(region.getIdentifier());
-	    if(region instanceof NotificationRegion) {
+        if(region instanceof NotificationRegion) {
                 if(isInIdleTime((NotificationRegion) region))
                     return;
             }
 
 
-	    if(region instanceof NotificationRegion && ((NotificationRegion)region).logHistory()) {
+        if(region instanceof NotificationRegion && ((NotificationRegion)region).logHistory()) {
                 NotificationRegion tmpRegion = (NotificationRegion) region;
                 long now = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
                 History tmpHistory = new History(tmpRegion.getIdentifier(), now, History.ACTION_ENTER);
                 mHistoryStore.addHistoryEntry(tmpHistory);
             } else {            
-	    // If service is bound and we have a Messenger to ReplyTo then send message to it
+        // If service is bound and we have a Messenger to ReplyTo then send message to it
             if (BeaconsMonitoringService.this.mIsBound && BeaconsMonitoringService.this.mReplyTo != null) {
 
                     Message monitoringResponseMsg = Message.obtain(null, MSG_MONITOR_REGION_ON_ENTER);
