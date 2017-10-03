@@ -43,6 +43,7 @@ public class HistoryStore {
 
     /**
      * Retrieve the last event registered.
+     *
      * @return
      */
     public History getLastEntry() {
@@ -51,8 +52,7 @@ public class HistoryStore {
                 LocalStorageDBHelper.HISTORY_TABLE_NAME, null, null, null, null, null,
                 LocalStorageDBHelper.HISTORY_FIELD_TIME + " DESC");
         History ret = null;
-        if(cursor.moveToFirst())
-        {
+        if (cursor.moveToFirst()) {
             final String id = cursor.getString(0);
             final long time = cursor.getLong(1);
             final String action = cursor.getString(2);
@@ -63,6 +63,7 @@ public class HistoryStore {
 
     /**
      * Retrieve all registered history events.
+     *
      * @return
      */
     public List<History> getAllHistoryEntries() {
@@ -79,11 +80,12 @@ public class HistoryStore {
             final String action = cursor.getString(2);
             entries.add(new History(id, timestamp, action));
         }
-    return entries;
+        return entries;
     }
 
     /**
      * Retrieve all event entries for the given region
+     *
      * @param regionIdentifier
      * @return
      */
@@ -119,7 +121,6 @@ public class HistoryStore {
             database.close();
         }
     }
-
 
 
     public void clear() {

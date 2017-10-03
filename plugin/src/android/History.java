@@ -28,6 +28,19 @@ public class History {
      */
     private String action;
 
+    /**
+     * History event record
+     *
+     * @param regionIdentifier Region identifier.
+     * @param timeStamp        time, in seconds and Unix time format.
+     * @param action           Action of the event, either enter or exit.
+     */
+    public History(String regionIdentifier, long timeStamp, String action) {
+        this.action = action;
+        this.regionIdentifier = regionIdentifier;
+        this.timeStamp = timeStamp;
+    }
+
     public String getRegionIdentifier() {
         return regionIdentifier;
     }
@@ -40,6 +53,15 @@ public class History {
         return timeStamp;
     }
 
+    /**
+     * Set the timestamp in Unix time, in seconds.
+     *
+     * @param timeStamp
+     */
+    public void setTimeStamp(long timeStamp) {
+        this.timeStamp = timeStamp;
+    }
+
     public String getFormattedDate() {
         Date date = new Date(timeStamp * 1000L);
         //yyyy-MM-dd'T'HH:mm:ss.SSSZ
@@ -48,31 +70,11 @@ public class History {
         return sdf.format(date);
     }
 
-    /**
-     * Set the timestamp in Unix time, in seconds.
-     * @param timeStamp
-     */
-    public void setTimeStamp(long timeStamp) {
-        this.timeStamp = timeStamp;
-    }
-
     public String getAction() {
         return action;
     }
 
     public void setAction(String action) {
         this.action = action;
-    }
-
-    /**
-     * History event record
-     * @param regionIdentifier Region identifier.
-     * @param timeStamp time, in seconds and Unix time format.
-     * @param action Action of the event, either enter or exit.
-     */
-    public History(String regionIdentifier, long timeStamp, String action) {
-        this.action = action;
-        this.regionIdentifier = regionIdentifier;
-        this.timeStamp = timeStamp;
     }
 }

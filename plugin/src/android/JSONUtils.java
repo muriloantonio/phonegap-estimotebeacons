@@ -78,8 +78,8 @@ public class JSONUtils {
     public static String toDbJson(Region region) {
         try {
             final JSONObject obj = JSONUtils.toJSONObject(region);
-            if(region instanceof NotificationRegion) {
-                obj.put("lastNotificationTime", ((NotificationRegion)region).getLastNotificationTime());
+            if (region instanceof NotificationRegion) {
+                obj.put("lastNotificationTime", ((NotificationRegion) region).getLastNotificationTime());
             }
             if (obj != null) {
                 return obj.toString();

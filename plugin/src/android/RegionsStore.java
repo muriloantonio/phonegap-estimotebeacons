@@ -27,10 +27,9 @@ public class RegionsStore {
 
     public Region getRegion(String id) {
         String json = storage.getItem(id);
-        if(json == null) {
+        if (json == null) {
             return null;
-        }
-        else {
+        } else {
 
             return JSONUtils.fromJson(json);
         }

@@ -12,6 +12,25 @@ import java.util.UUID;
  */
 public class NotificationRegion extends Region implements Parcelable {
 
+    public static final Creator<NotificationRegion> CREATOR = new Creator<NotificationRegion>() {
+        @Override
+        public NotificationRegion createFromParcel(Parcel in) {
+            final Region tmpRegion = Region.CREATOR.createFromParcel(in);
+            final String enterTitle = in.readString();
+            final String exitTitle = in.readString();
+            final String enterMessage = in.readString();
+            final String exitMessage = in.readString();
+            final String deeplink = in.readString();
+            final int idle = in.readInt();
+            final boolean logHistory = in.readInt() > 0;
+            return new NotificationRegion(tmpRegion, enterMessage, enterTitle, exitMessage, exitTitle, deeplink, idle, logHistory);
+        }
+
+        @Override
+        public NotificationRegion[] newArray(int size) {
+            return new NotificationRegion[size];
+        }
+    };
     private String enterTitle;
     private String exitTitle;
     private String enterMessage;
@@ -20,8 +39,24 @@ public class NotificationRegion extends Region implements Parcelable {
     private int idle;
     private long lastNotificationTime;
     private boolean logHistory;
-
     private boolean openedFromNotification;
+
+    public NotificationRegion(String identifier, UUID proximityUUID, Integer major, Integer minor, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink, int idle, boolean logHistory) {
+        super(identifier, proximityUUID, major, minor);
+        this.enterMessage = enterMessage;
+        this.enterTitle = enterTitle;
+        this.exitMessage = exitMessage;
+        this.exitTitle = exitTitle;
+        this.deeplink = deeplink;
+        this.idle = idle;
+        this.openedFromNotification = false;
+        this.lastNotificationTime = 0;
+        this.logHistory = logHistory;
+    }
+
+    public NotificationRegion(Region region, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink, int idle, boolean logHistory) {
+        this(region.getIdentifier(), region.getProximityUUID(), region.getMajor(), region.getMinor(), enterMessage, enterTitle, exitMessage, exitTitle, deeplink, idle, logHistory);
+    }
 
     public String getDeeplink() {
         return deeplink;
@@ -55,10 +90,6 @@ public class NotificationRegion extends Region implements Parcelable {
         this.logHistory = logHistory;
     }
 
-    public void setOpenedFromNotification(boolean openedFromNotification) {
-        this.openedFromNotification = openedFromNotification;
-    }
-
     public long getLastNotificationTime() {
         return lastNotificationTime;
     }
@@ -71,21 +102,8 @@ public class NotificationRegion extends Region implements Parcelable {
         return openedFromNotification;
     }
 
-    public NotificationRegion(String identifier, UUID proximityUUID, Integer major, Integer minor, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink, int idle, boolean logHistory) {
-        super(identifier, proximityUUID, major, minor);
-        this.enterMessage = enterMessage;
-        this.enterTitle = enterTitle;
-        this.exitMessage = exitMessage;
-        this.exitTitle = exitTitle;
-        this.deeplink = deeplink;
-        this.idle = idle;
-        this.openedFromNotification = false;
-        this.lastNotificationTime = 0;
-        this.logHistory = logHistory;
-    }
-
-    public NotificationRegion(Region region, String enterMessage, String enterTitle, String exitMessage, String exitTitle, String deeplink, int idle, boolean logHistory) {
-        this(region.getIdentifier(), region.getProximityUUID(), region.getMajor(), region.getMinor(), enterMessage, enterTitle, exitMessage, exitTitle, deeplink, idle, logHistory);
+    public void setOpenedFromNotification(boolean openedFromNotification) {
+        this.openedFromNotification = openedFromNotification;
     }
 
     @Override
@@ -143,24 +161,4 @@ public class NotificationRegion extends Region implements Parcelable {
     public int describeContents() {
         return 0;
     }
-
-    public static final Creator<NotificationRegion> CREATOR = new Creator<NotificationRegion>() {
-        @Override
-        public NotificationRegion createFromParcel(Parcel in) {
-            final Region tmpRegion = Region.CREATOR.createFromParcel(in);
-            final String enterTitle = in.readString();
-            final String exitTitle = in.readString();
-            final String enterMessage = in.readString();
-            final String exitMessage = in.readString();
-            final String deeplink = in.readString();
-            final int idle = in.readInt();
-            final boolean logHistory =  in.readInt() > 0;
-            return new NotificationRegion(tmpRegion, enterMessage, enterTitle, exitMessage, exitTitle, deeplink, idle, logHistory);
-        }
-
-        @Override
-        public NotificationRegion[] newArray(int size) {
-            return new NotificationRegion[size];
-        }
-    };
 }

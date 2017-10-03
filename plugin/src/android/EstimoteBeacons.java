@@ -6,9 +6,11 @@ JavaDoc for Estimote Android API: https://estimote.github.io/Android-SDK/JavaDoc
 
 package com.evothings;
 
+import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
@@ -19,21 +21,27 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
 
-import android.bluetooth.BluetoothAdapter;
-import android.content.Intent;
+import com.estimote.sdk.Beacon;
+import com.estimote.sdk.BeaconManager;
+import com.estimote.sdk.EstimoteSDK;
+import com.estimote.sdk.Region;
+import com.estimote.sdk.Utils;
+import com.estimote.sdk.cloud.model.BeaconInfo;
+import com.estimote.sdk.cloud.model.BeaconInfoSettings;
+import com.estimote.sdk.connection.BeaconConnection;
+import com.estimote.sdk.exception.EstimoteDeviceException;
 
-import com.estimote.sdk.*;
-import com.estimote.sdk.cloud.model.*;
-import com.estimote.sdk.connection.*;
-import com.estimote.sdk.exception.*;
-
-import org.apache.cordova.*;
+import org.apache.cordova.CallbackContext;
+import org.apache.cordova.CordovaArgs;
+import org.apache.cordova.CordovaInterface;
+import org.apache.cordova.CordovaPlugin;
+import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.StringWriter;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -43,29 +51,28 @@ import java.util.UUID;
 /**
  * Plugin class for the Estimote Beacon plugin.
  */
-public class EstimoteBeacons extends CordovaPlugin
-{
+public class EstimoteBeacons extends CordovaPlugin {
     private static final String LOGTAG = "EstimoteBeacons";
     private static final String ESTIMOTE_PROXIMITY_UUID = "B9407F30-F5F8-466E-AFF9-25556B57FE6D";
     private static final String ESTIMOTE_SAMPLE_REGION_ID = "EstimoteSampleRegion";
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
 
-    private BeaconManager     mBeaconManager;
-    private EstimoteSDK       mEstimoteSDK;
-    private CordovaInterface  mCordovaInterface;
+    private BeaconManager mBeaconManager;
+    private EstimoteSDK mEstimoteSDK;
+    private CordovaInterface mCordovaInterface;
 
     private ArrayList<Beacon> mRangedBeacons;
-    private BeaconConnected   mConnectedBeacon;
-    private boolean           mIsConnected = false;
+    private BeaconConnected mConnectedBeacon;
+    private boolean mIsConnected = false;
 
 
     // Maps and variables that keep track of Cordova callbacks.
     private HashMap<String, CallbackContext> mRangingCallbackContexts =
-        new HashMap<String, CallbackContext>();
+            new HashMap<String, CallbackContext>();
 
-    private CallbackContext   mBluetoothStateCallbackContext;
-    private CallbackContext   mBeaconConnectionCallback;
-    private CallbackContext   mBeaconDisconnectionCallback;
+    private CallbackContext mBluetoothStateCallbackContext;
+    private CallbackContext mBeaconConnectionCallback;
+    private CallbackContext mBeaconDisconnectionCallback;
 
 
     /**
@@ -88,6 +95,61 @@ public class EstimoteBeacons extends CordovaPlugin
     private HistoryStore mHistoryStore = null;
 
     private CallbackContext mInitServiceCallbackContext = null;
+    private ServiceConnection mServiceConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            Log.d(LOGTAG, "onServiceConnected start");
+            EstimoteBeacons.this.mServiceMessenger = new Messenger(service);
+            // Send a message to the service to register our-self as a "replier"
+            try {
+                Message msg = Message.obtain(null, BeaconsMonitoringService.MSG_REGISTER_CLIENT);
+                msg.replyTo = mMessenger;
+                mServiceMessenger.send(msg);
+            } catch (RemoteException re) {
+                Log.e(LOGTAG, re.getMessage(), re);
+            }
+
+            EstimoteBeacons.this.mBeaconsServiceConnected = true;
+            EstimoteBeacons.this.mBound = true;
+            EstimoteBeacons.this.sendMonitoringServiceReady();
+
+            Log.d(LOGTAG, "onServiceConnected end");
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            Log.d(LOGTAG, "onServiceDisconnected start");
+            EstimoteBeacons.this.mServiceMessenger = null;
+            EstimoteBeacons.this.mBound = false;
+            EstimoteBeacons.this.mBeaconsServiceConnected = false;
+            Log.d(LOGTAG, "onServiceDisconnected end");
+        }
+    };
+
+    /**
+     * Create JSON object representing a region.
+     */
+    private static JSONObject makeJSONRegion(Region region)
+            throws JSONException {
+        return makeJSONRegion(region, null);
+    }
+
+    /**
+     * Create JSON object representing a region in the given state.
+     */
+    private static JSONObject makeJSONRegion(Region region, String state)
+            throws JSONException {
+        JSONObject json = new JSONObject();
+        json.put("identifier", region.getIdentifier());
+        json.put("uuid", region.getProximityUUID());
+        json.put("major", region.getMajor());
+        json.put("minor", region.getMinor());
+        if (state != null) {
+            json.put("state", state);
+        }
+        return json;
+    }
 
     @Override
     protected void pluginInitialize() {
@@ -158,7 +220,8 @@ public class EstimoteBeacons extends CordovaPlugin
 
     /**
      * The final call you receive before your activity is destroyed.
-     */
+     *  
+     */
     public void onDestroy() {
         Log.i(LOGTAG, "onDestroy");
         disconnectConnectedBeacon();
@@ -168,7 +231,8 @@ public class EstimoteBeacons extends CordovaPlugin
 
     /**
      * Disconnect from the beacon manager.
-     */
+     *  
+     */
     private void disconnectBeaconManager() {
         if (mBeaconManager != null && mIsConnected) {
             mBeaconManager.disconnect();
@@ -181,69 +245,53 @@ public class EstimoteBeacons extends CordovaPlugin
      */
     @Override
     public boolean execute(
-        String action,
-        CordovaArgs args,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            String action,
+            CordovaArgs args,
+            final CallbackContext callbackContext)
+            throws JSONException {
         if ("beacons_startRangingBeaconsInRegion".equals(action)) {
             startRangingBeaconsInRegion(args, callbackContext);
-        }
-        else if ("beacons_stopRangingBeaconsInRegion".equals(action)) {
+        } else if ("beacons_stopRangingBeaconsInRegion".equals(action)) {
             stopRangingBeaconsInRegion(args, callbackContext);
-        }
-        else if ("beacons_startMonitoringForRegion".equals(action)) {
+        } else if ("beacons_startMonitoringForRegion".equals(action)) {
             startMonitoringForRegion(args, callbackContext);
-        }
-        else if ("beacons_stopMonitoringForRegion".equals(action)) {
+        } else if ("beacons_stopMonitoringForRegion".equals(action)) {
             stopMonitoringForRegion(args, callbackContext);
-        }
-        else if ("beacons_setupAppIDAndAppToken".equals(action)) {
+        } else if ("beacons_setupAppIDAndAppToken".equals(action)) {
             setupAppIDAndAppToken(args, callbackContext);
-        }
-        else if ("beacons_connectToBeacon".equals(action)) {
+        } else if ("beacons_connectToBeacon".equals(action)) {
             connectToBeacon(args, callbackContext);
-        }
-        else if ("beacons_disconnectConnectedBeacon".equals(action)) {
+        } else if ("beacons_disconnectConnectedBeacon".equals(action)) {
             disconnectConnectedBeacon(args, callbackContext);
-        }
-        else if ("beacons_writeConnectedProximityUUID".equals(action)) {
+        } else if ("beacons_writeConnectedProximityUUID".equals(action)) {
             writeConnectedProximityUUID(args, callbackContext);
-        }
-        else if ("beacons_writeConnectedMajor".equals(action)) {
+        } else if ("beacons_writeConnectedMajor".equals(action)) {
             writeConnectedMajor(args, callbackContext);
-        }
-        else if ("beacons_writeConnectedMinor".equals(action)) {
+        } else if ("beacons_writeConnectedMinor".equals(action)) {
             writeConnectedMinor(args, callbackContext);
-        }
-        else if ("bluetooth_bluetoothState".equals(action)) {
+        } else if ("bluetooth_bluetoothState".equals(action)) {
             checkBluetoothState(args, callbackContext);
-        }
-        else if("initService".equals(action)) {
+        } else if ("initService".equals(action)) {
             initService(args, callbackContext);
-        }
-        else if("deviceReady".equals(action)) {
+        } else if ("deviceReady".equals(action)) {
             deviceReady(args, callbackContext);
-        }
-        else if("GetAllEvents".equals(action)) {
+        } else if ("GetAllEvents".equals(action)) {
             getAllEvents(args, callbackContext);
-        }
-        else if("GetLastEvent".equals(action)) {
+        } else if ("GetLastEvent".equals(action)) {
             getLastEvent(args, callbackContext);
-        }
-        else {
+        } else {
             return false;
         }
         return true;
     }
 
-    private void getAllEvents(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
+    private void getAllEvents(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
         // Perhaps this should be refactored to retrieve this information from the service.
         if (mHistoryStore != null) {
             ArrayList<History> events = (ArrayList<History>) mHistoryStore.getAllHistoryEntries();
             JSONArray result = new JSONArray();
             for (History event : events) {
-                try{
+                try {
                     JSONObject jsonEvent = new JSONObject();
                     jsonEvent.put("RegionId", event.getRegionIdentifier());
                     jsonEvent.put("TimeStamp", event.getFormattedDate());
@@ -259,11 +307,11 @@ public class EstimoteBeacons extends CordovaPlugin
         }
     }
 
-    private void getLastEvent(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
+    private void getLastEvent(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
         // Perhaps this should be refactored to retrieve this information from the service.
         if (mHistoryStore != null) {
             History history = mHistoryStore.getLastEntry();
-            try{
+            try {
                 JSONObject jsonEvent = new JSONObject();
                 jsonEvent.put("RegionId", history.getRegionIdentifier());
                 jsonEvent.put("TimeStamp", history.getFormattedDate());
@@ -279,14 +327,13 @@ public class EstimoteBeacons extends CordovaPlugin
         }
     }
 
-
     private boolean initService(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
         mInitServiceCallbackContext = callbackContext;
         sendMonitoringServiceReady();
         return true;
     }
 
-    private void deviceReady(CordovaArgs cordovaArgs, final CallbackContext callbackContext){
+    private void deviceReady(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
         Intent intent = cordova.getActivity().getIntent();
         Intent launcherIntent = null;
 
@@ -301,7 +348,7 @@ public class EstimoteBeacons extends CordovaPlugin
             String data = launcherIntent.getStringExtra("beacons.notification.data");
             boolean inside = launcherIntent.getBooleanExtra("beacons.notification.inside", false);
             if (data != null) {
-                try{
+                try {
                     final JSONObject jsonObject = new JSONObject(data);
                     jsonObject.put("state", inside ? "inside" : "outside");
                     sendMonitoringUpdateToWebView(jsonObject);
@@ -318,10 +365,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * If Bluetooth is off, open a Bluetooth dialog.
      */
     private void checkBluetoothState(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "checkBluetoothState");
 
         // Check that no Bluetooth state request is in progress.
@@ -341,14 +387,13 @@ public class EstimoteBeacons extends CordovaPlugin
                 public void run() {
                     Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     mCordovaInterface.startActivityForResult(
-                        self,
-                        enableIntent,
-                        REQUEST_ENABLE_BLUETOOTH);
+                            self,
+                            enableIntent,
+                            REQUEST_ENABLE_BLUETOOTH);
                 }
             };
             mCordovaInterface.getActivity().runOnUiThread(openBluetoothDialog);
-        }
-        else {
+        } else {
             // Bluetooth is enabled, return the result to JavaScript,
             sendResultForBluetoothEnabled(callbackContext);
         }
@@ -357,13 +402,11 @@ public class EstimoteBeacons extends CordovaPlugin
     /**
      * Check if Bluetooth is enabled and return result to JavaScript.
      */
-    public void sendResultForBluetoothEnabled(CallbackContext callbackContext)
-    {
+    public void sendResultForBluetoothEnabled(CallbackContext callbackContext) {
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter.isEnabled()) {
             callbackContext.success(1);
-        }
-        else {
+        } else {
             callbackContext.success(0);
         }
     }
@@ -372,8 +415,7 @@ public class EstimoteBeacons extends CordovaPlugin
      * Called when the Bluetooth dialog is closed.
      */
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent intent)
-    {
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
         Log.i(LOGTAG, "onActivityResult");
         if (REQUEST_ENABLE_BLUETOOTH == requestCode) {
             sendResultForBluetoothEnabled(mBluetoothStateCallbackContext);
@@ -385,10 +427,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * Start ranging for beacons.
      */
     private void startRangingBeaconsInRegion(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "startRangingBeaconsInRegion");
 
         JSONObject json = cordovaArgs.getJSONObject(0);
@@ -441,8 +482,7 @@ public class EstimoteBeacons extends CordovaPlugin
     /**
      * Helper method.
      */
-    private void startRanging(Region region, CallbackContext callbackContext)
-    {
+    private void startRanging(Region region, CallbackContext callbackContext) {
         Log.i(LOGTAG, "startRanging");
         mBeaconManager.startRanging(region);
     }
@@ -451,16 +491,15 @@ public class EstimoteBeacons extends CordovaPlugin
      * Stop ranging for beacons.
      */
     private void stopRangingBeaconsInRegion(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "stopRangingBeaconsInRegion");
 
         JSONObject json = cordovaArgs.getJSONObject(0);
 
         Region region = null;
-        try{
+        try {
             region = createRegion(json);
         } catch (NullPointerException e) {
             callbackContext.error("Invalid UUID");
@@ -489,15 +528,14 @@ public class EstimoteBeacons extends CordovaPlugin
         // Stop ranging if connected.
         if (mIsConnected) {
             //try {
-                Log.i(LOGTAG, "stopRanging");
+            Log.i(LOGTAG, "stopRanging");
 
-                // Stop ranging.
-                mBeaconManager.stopRanging(region);
+            // Stop ranging.
+            mBeaconManager.stopRanging(region);
 
-                // Send back success.
-                callbackContext.success();
-        }
-        else {
+            // Send back success.
+            callbackContext.success();
+        } else {
             callbackContext.error("Not connected");
         }
     }
@@ -514,7 +552,7 @@ public class EstimoteBeacons extends CordovaPlugin
         JSONObject json = cordovaArgs.getJSONObject(0);
 
         Region region = JSONUtils.fromJson(json.toString());
-        if(region == null) {
+        if (region == null) {
             callbackContext.error("Invalid region");
             return;
         }
@@ -534,8 +572,6 @@ public class EstimoteBeacons extends CordovaPlugin
         }
     }
 
-
-
     /**
      * Stop monitoring for region.
      */
@@ -548,7 +584,7 @@ public class EstimoteBeacons extends CordovaPlugin
         JSONObject json = cordovaArgs.getJSONObject(0);
 
         Region region = JSONUtils.fromJson(json.toString());
-        if(region == null) {
+        if (region == null) {
             callbackContext.error("Invalid region");
             return;
         }
@@ -573,10 +609,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * Authenticate with Estimote Cloud
      */
     private void setupAppIDAndAppToken(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "setupAppIDAndAppToken");
 
         if (mEstimoteSDK == null) {
@@ -593,12 +628,14 @@ public class EstimoteBeacons extends CordovaPlugin
         }
     }
 
+    // todo: consider mac address only version?
+
     /**
      * Find beacon in rangedBeacons, with MAC address
      */
     private Beacon findBeacon(String macAddress) {
         Log.i(LOGTAG, "findBeacon(String)");
-        for (Iterator<Beacon> i = mRangedBeacons.iterator(); i.hasNext();) {
+        for (Iterator<Beacon> i = mRangedBeacons.iterator(); i.hasNext(); ) {
             Beacon beacon = i.next();
             if (beacon.getMacAddress().equals(macAddress)) {
                 return beacon;
@@ -613,7 +650,7 @@ public class EstimoteBeacons extends CordovaPlugin
      */
     private Beacon findBeacon(String proximityUUID, int major, int minor) {
         Log.i(LOGTAG, "findBeacon(String, int, int)");
-        for (Iterator<Beacon> i = mRangedBeacons.iterator(); i.hasNext();) {
+        for (Iterator<Beacon> i = mRangedBeacons.iterator(); i.hasNext(); ) {
             Beacon beacon = i.next();
             if (beacon.getProximityUUID().equals(proximityUUID) &&
                     beacon.getMajor() == major &&
@@ -646,15 +683,13 @@ public class EstimoteBeacons extends CordovaPlugin
         return null;
     }
 
-    // todo: consider mac address only version?
     /**
      * Connect to beacon
      */
     private void connectToBeacon(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "connectToBeacon");
 
         JSONObject json = cordovaArgs.getJSONObject(0);
@@ -667,15 +702,15 @@ public class EstimoteBeacons extends CordovaPlugin
 
         // beacons are jealous creatures and don't like competition
         if (mConnectedBeacon != null &&
-            !mConnectedBeacon.getMacAddress().equals(beacon.getMacAddress())) {
+                !mConnectedBeacon.getMacAddress().equals(beacon.getMacAddress())) {
             disconnectConnectedBeacon();
         }
 
         mBeaconConnectionCallback = callbackContext;
         mConnectedBeacon = new BeaconConnected(
-            cordova.getActivity(),
-            beacon,
-            new PluginConnectingListener()
+                cordova.getActivity(),
+                beacon,
+                new PluginConnectingListener()
         );
 
         mConnectedBeacon.authenticate();
@@ -699,10 +734,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * Disconnect connected beacon, c/o Cordova
      */
     private void disconnectConnectedBeacon(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "disconnectConnectedBeacon (cordova)");
 
         mBeaconDisconnectionCallback = callbackContext;
@@ -713,10 +747,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * Write Proximity UUID to connected beacon
      */
     private void writeConnectedProximityUUID(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "writeConnectedProximityUUID");
 
         if (mConnectedBeacon != null && mConnectedBeacon.isConnected()) {
@@ -761,10 +794,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * Write Major to connected beacon
      */
     private void writeConnectedMajor(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "writeConnectedMajor");
 
         if (mConnectedBeacon != null && mConnectedBeacon.isConnected()) {
@@ -776,7 +808,7 @@ public class EstimoteBeacons extends CordovaPlugin
                 callbackContext.sendPluginResult(r);
             }
 
-           if (major == 0) {
+            if (major == 0) {
                 callbackContext.error("major cannot be 0");
                 return;
             }
@@ -804,10 +836,9 @@ public class EstimoteBeacons extends CordovaPlugin
      * Write Minor to connected beacon
      */
     private void writeConnectedMinor(
-        CordovaArgs cordovaArgs,
-        final CallbackContext callbackContext)
-        throws JSONException
-    {
+            CordovaArgs cordovaArgs,
+            final CallbackContext callbackContext)
+            throws JSONException {
         Log.i(LOGTAG, "writeConnectedMinor");
 
         if (mConnectedBeacon != null && mConnectedBeacon.isConnected()) {
@@ -844,16 +875,15 @@ public class EstimoteBeacons extends CordovaPlugin
 
     /**
      * Create JSON object representing beacon info.
-     *
+     * <p>
      * beaconInfo format:
      * {
-     *	 region: region,
-     *	 beacons: array of beacon
+     * region: region,
+     * beacons: array of beacon
      * }
      */
     private JSONObject makeJSONBeaconInfo(Region region, List<Beacon> beacons)
-        throws JSONException
-    {
+            throws JSONException {
         // Create JSON object.
         JSONObject json = new JSONObject();
         json.put("region", makeJSONRegion(region));
@@ -862,45 +892,22 @@ public class EstimoteBeacons extends CordovaPlugin
     }
 
     /**
-     * Create JSON object representing a region.
-     */
-    private static JSONObject makeJSONRegion(Region region)
-        throws JSONException
-    {
-        return makeJSONRegion(region, null);
-    }
-
-    /**
-     * Create JSON object representing a region in the given state.
-     */
-    private static JSONObject makeJSONRegion(Region region, String state)
-        throws JSONException
-    {
-        JSONObject json = new JSONObject();
-        json.put("identifier", region.getIdentifier());
-        json.put("uuid", region.getProximityUUID());
-        json.put("major", region.getMajor());
-        json.put("minor", region.getMinor());
-        if (state != null) {
-            json.put("state", state);
-        }
-        return json;
-    }
-
-    /**
      * Create JSON object representing a beacon list.
      */
     private JSONArray makeJSONBeaconArray(List<Beacon> beacons)
-        throws JSONException
-    {
+            throws JSONException {
         JSONArray jsonArray = new JSONArray();
         for (Beacon b : beacons) {
             // Compute proximity value.
             Utils.Proximity proximityValue = Utils.computeProximity(b);
             int proximity = 0; // Unknown.
-            if (Utils.Proximity.IMMEDIATE == proximityValue) { proximity = 1; }
-            else if (Utils.Proximity.NEAR == proximityValue) { proximity = 2; }
-            else if (Utils.Proximity.FAR == proximityValue) { proximity = 3; }
+            if (Utils.Proximity.IMMEDIATE == proximityValue) {
+                proximity = 1;
+            } else if (Utils.Proximity.NEAR == proximityValue) {
+                proximity = 2;
+            } else if (Utils.Proximity.FAR == proximityValue) {
+                proximity = 3;
+            }
 
             // Compute distance value.
             double distance = Utils.computeAccuracy(b);
@@ -941,12 +948,11 @@ public class EstimoteBeacons extends CordovaPlugin
         return uuid + "%" + major + "%" + minor;
     }
 
-    private String regionHashMapKey(Region region)
-    {
+    private String regionHashMapKey(Region region) {
         UUID uuid = region.getProximityUUID();
         Integer major = region.getMajor();
         Integer minor = region.getMinor();
-        if(uuid == null) {
+        if (uuid == null) {
             return regionHashMapKey(null, major, minor);
         } else {
             return regionHashMapKey(uuid.toString(), major, minor);
@@ -960,7 +966,7 @@ public class EstimoteBeacons extends CordovaPlugin
         // null ranges all regions, if unset
         String uuidString = json.optString("uuid", null);
         UUID uuid = null;
-        if(uuidString != null) {
+        if (uuidString != null) {
             uuid = UUID.fromString(uuidString);
         }
         Integer major = optUInt16Null(json, "major");
@@ -968,8 +974,8 @@ public class EstimoteBeacons extends CordovaPlugin
 
 
         String identifier = json.optString(
-            "identifier",
-            regionHashMapKey(uuidString, major, minor)
+                "identifier",
+                regionHashMapKey(uuidString, major, minor)
         );
 
         return new Region(identifier, uuid, major, minor);
@@ -984,10 +990,107 @@ public class EstimoteBeacons extends CordovaPlugin
         int i = json.optInt(name, -1);
         if (i < 0 || i > (0xFFFF)) {
             return null;
-        }
-        else {
+        } else {
             return new Integer(i);
         }
+    }
+
+    private void registerServiceReadyBroadcastReceiver() {
+        Log.d(LOGTAG, "registerServiceReadyBroadcastReceiver start");
+        IntentFilter intentFilter = new IntentFilter(BeaconsMonitoringService.SERVICE_READY_ACTION);
+        if (mServiceReadyBroadcastReceiver == null) {
+            mServiceReadyBroadcastReceiver = new ServiceReadyBroadcastReceiver();
+        }
+        final Context context = this.webView.getContext();
+        context.registerReceiver(mServiceReadyBroadcastReceiver, intentFilter);
+        Log.d(LOGTAG, "registerServiceReadyBroadcastReceiver end");
+    }
+
+    private void unregisterServiceReadyBroadcastReceiver() {
+        Log.d(LOGTAG, "unregisterServiceReadyBroadcastReceiver start");
+        final Context context = this.webView.getContext();
+        context.unregisterReceiver(mServiceReadyBroadcastReceiver);
+        Log.d(LOGTAG, "unregisterServiceReadyBroadcastReceiver end");
+    }
+
+    //---------------------------------------
+    //
+    //
+    //
+    //---------------------------------------
+
+    private void doBindService() {
+        Log.d(LOGTAG, "doBindService start");
+        final Context context = this.webView.getContext();
+        if (!mBound) {
+            context.startService(new Intent(context, BeaconsMonitoringService.class));
+            mBound = context.bindService(new Intent(context, BeaconsMonitoringService.class),
+                    mServiceConnection, Context.BIND_AUTO_CREATE);
+        }
+        Log.d(LOGTAG, "doBindService end");
+    }
+
+    private void doUnbindService() {
+        Log.d(LOGTAG, "doUnBindService start");
+        if (mServiceMessenger != null) {
+            try {
+                Message msg = Message.obtain(null, BeaconsMonitoringService.MSG_UNREGISTER_CLIENT);
+                mServiceMessenger.send(msg);
+            } catch (RemoteException re) {
+                Log.e(LOGTAG, re.getMessage(), re);
+            }
+
+        }
+        final Context context = this.webView.getContext();
+        context.unbindService(mServiceConnection);
+        mBound = false;
+        mBeaconsServiceConnected = true;
+        Log.d(LOGTAG, "doUnBindService end");
+    }
+
+    private void sendMonitoringServiceReady() {
+        // Inform WebView that we are now ready to register regions
+        try {
+            if (mBeaconsServiceConnected && mInitServiceCallbackContext != null) {
+                Log.d(LOGTAG, "Informing webview that we're ready!");
+                JSONObject res = new JSONObject();
+                res.put("ready", true);
+                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, res);
+                pluginResult.setKeepCallback(true);
+                mInitServiceCallbackContext.sendPluginResult(pluginResult);
+            }
+        } catch (JSONException e) {
+
+        }
+    }
+
+    private void sendMonitoringRegionEnterUpdate(Region region) {
+        try {
+            final JSONObject jsonObject = JSONUtils.toJSONObject(region, "inside");
+            if (jsonObject != null) {
+                sendMonitoringUpdateToWebView(jsonObject);
+            }
+        } catch (JSONException e) {
+            Log.e(LOGTAG, "sendMonitoringRegionEnterUpdate error: ", e);
+        }
+    }
+
+    private void sendMonitoringRegionExitUpdate(Region region) {
+        try {
+            final JSONObject jsonObject = JSONUtils.toJSONObject(region, "outside");
+            if (jsonObject != null) {
+                sendMonitoringUpdateToWebView(jsonObject);
+            }
+        } catch (JSONException e) {
+            Log.e(LOGTAG, "sendMonitoringRegionExitUpdate error: ", e);
+        }
+    }
+
+    private void sendMonitoringUpdateToWebView(JSONObject jsonObject) {
+        PluginResult pr = new PluginResult(PluginResult.Status.OK, jsonObject);
+        pr.setKeepCallback(true);
+        webView.sendPluginResult(pr, "EstimoteBeaconsStaticChannel");
+        Log.d(LOGTAG, "sendMonitoringRegionEnterUpdate");
     }
 
     /**
@@ -1011,7 +1114,7 @@ public class EstimoteBeacons extends CordovaPlugin
                 if (null == rangingCallback) {
                     // No callback found.
                     Log.e(LOGTAG,
-                        "onBeaconsDiscovered no callback found for key: " + key);
+                            "onBeaconsDiscovered no callback found for key: " + key);
                     return;
                 }
 
@@ -1022,21 +1125,18 @@ public class EstimoteBeacons extends CordovaPlugin
                 PluginResult r = new PluginResult(PluginResult.Status.OK, json);
                 r.setKeepCallback(true);
                 rangingCallback.sendPluginResult(r);
-            }
-            catch(JSONException e) {
+            } catch (JSONException e) {
                 Log.e(LOGTAG, "onBeaconsDiscovered error:", e);
             }
         }
     }
 
-
-
     /**
      * Listener for beacon connection events
      */
-    class PluginConnectingListener implements BeaconConnection.ConnectionCallback
-    {
-        @Override public void onAuthorized(BeaconInfo beaconInfo) {
+    class PluginConnectingListener implements BeaconConnection.ConnectionCallback {
+        @Override
+        public void onAuthorized(BeaconInfo beaconInfo) {
 
         }
 
@@ -1101,7 +1201,8 @@ public class EstimoteBeacons extends CordovaPlugin
             mBeaconConnectionCallback = null;
         }
 
-        @Override public void onAuthenticationError(EstimoteDeviceException e) {
+        @Override
+        public void onAuthenticationError(EstimoteDeviceException e) {
             CallbackContext callback = mBeaconConnectionCallback;
 
             if (callback == null) {
@@ -1121,7 +1222,8 @@ public class EstimoteBeacons extends CordovaPlugin
             mBeaconConnectionCallback = null;
         }
 
-        @Override public void onDisconnected() {
+        @Override
+        public void onDisconnected() {
             CallbackContext callback = mBeaconDisconnectionCallback;
 
             if (callback == null) {
@@ -1140,9 +1242,9 @@ public class EstimoteBeacons extends CordovaPlugin
         private Beacon mBeacon;
 
         public BeaconConnected(
-            Context context,
-            Beacon beacon,
-            BeaconConnection.ConnectionCallback connectionCallback
+                Context context,
+                Beacon beacon,
+                BeaconConnection.ConnectionCallback connectionCallback
         ) {
             super(context, beacon, connectionCallback);
             this.mBeacon = beacon;
@@ -1153,13 +1255,7 @@ public class EstimoteBeacons extends CordovaPlugin
         }
     }
 
-    //---------------------------------------
-    //
-    //
-    //
-    //---------------------------------------
-
-    private class ServiceReadyBroadcastReceiver extends  BroadcastReceiver {
+    private class ServiceReadyBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             Log.d(LOGTAG, "ServiceReadyBroadcastReceiver::onReceive start");
@@ -1167,86 +1263,6 @@ public class EstimoteBeacons extends CordovaPlugin
             Log.d(LOGTAG, "ServiceReadyBroadcastReceiver::onReceive end");
         }
     }
-
-
-    private void registerServiceReadyBroadcastReceiver() {
-        Log.d(LOGTAG, "registerServiceReadyBroadcastReceiver start");
-        IntentFilter intentFilter = new IntentFilter(BeaconsMonitoringService.SERVICE_READY_ACTION);
-        if(mServiceReadyBroadcastReceiver == null) {
-            mServiceReadyBroadcastReceiver = new ServiceReadyBroadcastReceiver();
-        }
-        final Context context = this.webView.getContext();
-        context.registerReceiver(mServiceReadyBroadcastReceiver, intentFilter);
-        Log.d(LOGTAG, "registerServiceReadyBroadcastReceiver end");
-    }
-
-    private void unregisterServiceReadyBroadcastReceiver() {
-        Log.d(LOGTAG, "unregisterServiceReadyBroadcastReceiver start");
-        final Context context = this.webView.getContext();
-        context.unregisterReceiver(mServiceReadyBroadcastReceiver);
-        Log.d(LOGTAG, "unregisterServiceReadyBroadcastReceiver end");
-    }
-
-    private void doBindService(){
-        Log.d(LOGTAG, "doBindService start");
-        final Context context = this.webView.getContext();
-        if(!mBound) {
-            context.startService(new Intent(context, BeaconsMonitoringService.class));
-            mBound = context.bindService(new Intent(context, BeaconsMonitoringService.class),
-                    mServiceConnection, Context.BIND_AUTO_CREATE);
-        }
-        Log.d(LOGTAG, "doBindService end");
-    }
-
-    private void doUnbindService(){
-        Log.d(LOGTAG, "doUnBindService start");
-        if (mServiceMessenger != null) {
-            try{
-                Message msg = Message.obtain(null, BeaconsMonitoringService.MSG_UNREGISTER_CLIENT);
-                mServiceMessenger.send(msg);
-            } catch (RemoteException re) {
-                Log.e(LOGTAG, re.getMessage(), re);
-            }
-
-        }
-        final Context context = this.webView.getContext();
-        context.unbindService(mServiceConnection);
-        mBound = false;
-        mBeaconsServiceConnected = true;
-        Log.d(LOGTAG, "doUnBindService end");
-    }
-
-    private ServiceConnection mServiceConnection = new ServiceConnection() {
-
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            Log.d(LOGTAG, "onServiceConnected start");
-            EstimoteBeacons.this.mServiceMessenger = new Messenger(service);
-            // Send a message to the service to register our-self as a "replier"
-            try{
-                Message msg = Message.obtain(null, BeaconsMonitoringService.MSG_REGISTER_CLIENT);
-                msg.replyTo = mMessenger;
-                mServiceMessenger.send(msg);
-            } catch (RemoteException re) {
-                Log.e(LOGTAG, re.getMessage(), re);
-            }
-
-            EstimoteBeacons.this.mBeaconsServiceConnected = true;
-            EstimoteBeacons.this.mBound = true;
-            EstimoteBeacons.this.sendMonitoringServiceReady();
-
-            Log.d(LOGTAG, "onServiceConnected end");
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            Log.d(LOGTAG, "onServiceDisconnected start");
-            EstimoteBeacons.this.mServiceMessenger = null;
-            EstimoteBeacons.this.mBound = false;
-            EstimoteBeacons.this.mBeaconsServiceConnected = false;
-            Log.d(LOGTAG, "onServiceDisconnected end");
-        }
-    };
 
     private class IncomingHandler extends Handler {
         @Override
@@ -1262,8 +1278,7 @@ public class EstimoteBeacons extends CordovaPlugin
                     sendMonitoringRegionEnterUpdate(region);
                     break;
                 }
-                case BeaconsMonitoringService.MSG_MONITOR_REGION_ON_EXIT:
-                {
+                case BeaconsMonitoringService.MSG_MONITOR_REGION_ON_EXIT: {
                     bundle.setClassLoader(Region.class.getClassLoader());
                     final Region region = bundle.getParcelable(BeaconsMonitoringService.MSG_KEY_MONITORING_RESULT);
                     sendMonitoringRegionExitUpdate(region);
@@ -1275,50 +1290,5 @@ public class EstimoteBeacons extends CordovaPlugin
             }
             Log.d(LOGTAG, "handleMessage end");
         }
-    }
-
-    private void sendMonitoringServiceReady() {
-        // Inform WebView that we are now ready to register regions
-        try {
-            if(mBeaconsServiceConnected && mInitServiceCallbackContext != null) {
-                Log.d(LOGTAG, "Informing webview that we're ready!");
-                JSONObject res = new JSONObject();
-                res.put("ready", true);
-                PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, res);
-                pluginResult.setKeepCallback(true);
-                mInitServiceCallbackContext.sendPluginResult(pluginResult);
-            }
-        } catch (JSONException e){
-
-        }
-    }
-
-    private void sendMonitoringRegionEnterUpdate(Region region) {
-        try{
-            final JSONObject jsonObject = JSONUtils.toJSONObject(region, "inside");
-            if(jsonObject != null) {
-                sendMonitoringUpdateToWebView(jsonObject);
-            }
-        } catch (JSONException e) {
-            Log.e(LOGTAG, "sendMonitoringRegionEnterUpdate error: ", e);
-        }
-    }
-
-    private void sendMonitoringRegionExitUpdate(Region region) {
-        try{
-            final JSONObject jsonObject = JSONUtils.toJSONObject(region, "outside");
-            if(jsonObject != null) {
-                sendMonitoringUpdateToWebView(jsonObject);
-            }
-        } catch (JSONException e) {
-            Log.e(LOGTAG, "sendMonitoringRegionExitUpdate error: ", e);
-        }
-    }
-
-    private void sendMonitoringUpdateToWebView(JSONObject jsonObject) {
-        PluginResult pr = new PluginResult(PluginResult.Status.OK, jsonObject);
-        pr.setKeepCallback(true);
-        webView.sendPluginResult(pr, "EstimoteBeaconsStaticChannel");
-        Log.d(LOGTAG, "sendMonitoringRegionEnterUpdate");
     }
 }

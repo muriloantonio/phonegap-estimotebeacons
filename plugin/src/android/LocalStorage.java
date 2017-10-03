@@ -10,8 +10,8 @@ import java.util.List;
 
 /**
  * @author João Gonçalves
- * Created by João Gonçalves (jppg) on 03/03/16.
- * Taken from https://github.com/cowbell/cordova-plugin-geofence/blob/master/src/android/LocalStorage.java
+ *         Created by João Gonçalves (jppg) on 03/03/16.
+ *         Taken from https://github.com/cowbell/cordova-plugin-geofence/blob/master/src/android/LocalStorage.java
  */
 public class LocalStorage {
 
@@ -41,8 +41,7 @@ public class LocalStorage {
     /**
      * This method allows to get an item for the given key
      *
-     * @param key
-     *            : the key to look for in the local storage
+     * @param key : the key to look for in the local storage
      * @return the item having the given key
      */
     public String getItem(String key) {
@@ -52,7 +51,7 @@ public class LocalStorage {
             Cursor cursor = database.query(
                     LocalStorageDBHelper.BEACONS_TABLE_NAME, null,
                     LocalStorageDBHelper.BEACONS_ID + " = ?",
-                    new String[] { key }, null, null, null);
+                    new String[]{key}, null, null, null);
             if (cursor.moveToFirst()) {
                 value = cursor.getString(1);
             }
