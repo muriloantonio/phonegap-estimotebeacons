@@ -15,7 +15,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 
 import com.estimote.sdk.Beacon;
