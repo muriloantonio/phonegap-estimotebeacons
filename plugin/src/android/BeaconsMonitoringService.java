@@ -25,6 +25,7 @@ import com.estimote.sdk.Region;
 import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -272,6 +273,7 @@ public class BeaconsMonitoringService extends Service {
         notifyIntent = context.getPackageManager()
                 .getLaunchIntentForPackage(packageName);
 
+        notifyIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
         if (notificationRegion.getDeeplink() != null && !notificationRegion.getDeeplink().isEmpty()) {
             notifyIntent.setData(Uri.parse(notificationRegion.getDeeplink()));
@@ -291,10 +293,9 @@ public class BeaconsMonitoringService extends Service {
         notificationRegion.setLastNotificationTime(System.currentTimeMillis());
         mRegionsStore.setRegion(notificationRegion);
 
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
-        stackBuilder.addNextIntent(notifyIntent);
-        PendingIntent pendingIntent = stackBuilder.getPendingIntent(
-                0, PendingIntent.FLAG_UPDATE_CURRENT);
+        int requestCode = new Random().nextInt();
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(context, requestCode, notifyIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         // Set message depending entering or exit...
         Notification notification = new Notification.Builder(BeaconsMonitoringService.this)

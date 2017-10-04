@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -25,6 +26,8 @@ import com.estimote.sdk.Beacon;
 import com.estimote.sdk.BeaconManager;
 import com.estimote.sdk.EstimoteSDK;
 import com.estimote.sdk.Region;
+import com.estimote.sdk.SystemRequirementsChecker;
+import com.estimote.sdk.SystemRequirementsHelper;
 import com.estimote.sdk.Utils;
 import com.estimote.sdk.cloud.model.BeaconInfo;
 import com.estimote.sdk.cloud.model.BeaconInfoSettings;
@@ -335,6 +338,19 @@ public class EstimoteBeacons extends CordovaPlugin {
 
     private void deviceReady(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
         Intent intent = cordova.getActivity().getIntent();
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            final boolean defaultPermissions = SystemRequirementsChecker.checkWithDefaultDialogs(cordova.getActivity());
+        }
+        handleLaunchIntent(intent);
+    }
+
+    @Override
+    public void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleLaunchIntent(intent);
+    }
+
+    private void handleLaunchIntent(Intent intent) {
         Intent launcherIntent = null;
 
         if (intent != null && intent.hasExtra("LAUNCHER_INTENT")) {
