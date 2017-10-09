@@ -6,6 +6,7 @@ JavaDoc for Estimote Android API: https://estimote.github.io/Android-SDK/JavaDoc
 
 package com.evothings;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -13,6 +14,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -25,7 +27,7 @@ import android.util.Log;
 import com.estimote.sdk.Beacon;
 import com.estimote.sdk.BeaconManager;
 import com.estimote.sdk.Region;
-import com.estimote.sdk.SystemRequirementsChecker;
+import com.estimote.sdk.SystemRequirementsHelper;
 import com.estimote.sdk.Utils;
 
 import org.apache.cordova.CallbackContext;
@@ -39,7 +41,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,6 +50,7 @@ import java.util.UUID;
 public class EstimoteBeacons extends CordovaPlugin {
     private static final String LOGTAG = "EstimoteBeacons";
     private static final int REQUEST_ENABLE_BLUETOOTH = 1;
+    private static final int REQUEST_LOCATION_PERMISSION = 2;
 
     private BeaconManager mBeaconManager;
     private CordovaInterface mCordovaInterface;
@@ -62,6 +64,7 @@ public class EstimoteBeacons extends CordovaPlugin {
             new HashMap<String, CallbackContext>();
 
     private CallbackContext mBluetoothStateCallbackContext;
+    private CallbackContext mRequestLocationCallbackContext;
 
 
     /**
@@ -241,6 +244,10 @@ public class EstimoteBeacons extends CordovaPlugin {
             stopMonitoringForRegion(args, callbackContext);
         } else if ("bluetooth_bluetoothState".equals(action)) {
             checkBluetoothState(args, callbackContext);
+        } else if ("beacons_requestAlwaysAuthorization".equals(action)) {
+            requestLocationPermission(args, callbackContext);
+        } else if ("beacons_authorizationStatus".equals(action)) {
+            getLocationPermissionStatus(args, callbackContext);
         } else if ("initService".equals(action)) {
             initService(args, callbackContext);
         } else if ("deviceReady".equals(action)) {
@@ -253,6 +260,15 @@ public class EstimoteBeacons extends CordovaPlugin {
             return false;
         }
         return true;
+    }
+
+    private void getLocationPermissionStatus(CordovaArgs args, CallbackContext callbackContext) {
+        boolean hasLocationPermission = SystemRequirementsHelper.hasAnyLocationPermission(cordova.getActivity());
+        // Mimics the response from iOS
+        // 2 - kCLAuthorizationStatusDenied
+        // 3 - kCLAuthorizationStatusAuthorizedAlways
+
+        callbackContext.success(hasLocationPermission ? 3 : 2);
     }
 
     private void getAllEvents(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
@@ -274,6 +290,16 @@ public class EstimoteBeacons extends CordovaPlugin {
             callbackContext.success(result);
         } else {
             callbackContext.error("Failed to retrieve data");
+        }
+    }
+
+    private void requestLocationPermission(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            boolean hasLocationPermission = SystemRequirementsHelper.hasAnyLocationPermission(cordova.getActivity());
+            if (!hasLocationPermission) {
+                this.mRequestLocationCallbackContext = callbackContext;
+                cordova.requestPermission(this, REQUEST_LOCATION_PERMISSION, Manifest.permission.ACCESS_COARSE_LOCATION);
+            }
         }
     }
 
@@ -305,9 +331,6 @@ public class EstimoteBeacons extends CordovaPlugin {
 
     private void deviceReady(CordovaArgs cordovaArgs, final CallbackContext callbackContext) {
         Intent intent = cordova.getActivity().getIntent();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            final boolean defaultPermissions = SystemRequirementsChecker.checkWithDefaultDialogs(cordova.getActivity());
-        }
         handleLaunchIntent(intent);
     }
 
@@ -406,6 +429,20 @@ public class EstimoteBeacons extends CordovaPlugin {
         }
     }
 
+    @Override
+    public void onRequestPermissionResult(int requestCode, String[] permissions, int[] grantResults) throws JSONException {
+        super.onRequestPermissionResult(requestCode, permissions, grantResults);
+        if (REQUEST_LOCATION_PERMISSION == requestCode) {
+            if (permissions[0].equals(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    this.mRequestLocationCallbackContext.success(1);
+                } else {
+                    this.mRequestLocationCallbackContext.success(0);
+                }
+            }
+        }
+    }
+
     /**
      * Start monitoring for region.
      */
@@ -414,7 +451,6 @@ public class EstimoteBeacons extends CordovaPlugin {
             final CallbackContext callbackContext)
             throws JSONException {
         Log.i(LOGTAG, "startMonitoringForRegion");
-
         JSONObject json = cordovaArgs.getJSONObject(0);
 
         Region region = JSONUtils.fromJson(json.toString());
