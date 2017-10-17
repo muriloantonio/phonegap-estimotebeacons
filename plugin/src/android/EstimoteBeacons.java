@@ -307,15 +307,21 @@ public class EstimoteBeacons extends CordovaPlugin {
         // Perhaps this should be refactored to retrieve this information from the service.
         if (mHistoryStore != null) {
             History history = mHistoryStore.getLastEntry();
-            try {
+            if (history != null) {
+                try {
+                    JSONObject jsonEvent = new JSONObject();
+                    jsonEvent.put("RegionId", history.getRegionIdentifier());
+                    jsonEvent.put("TimeStamp", history.getFormattedDate());
+                    jsonEvent.put("Action", history.getAction());
+                    callbackContext.success(jsonEvent);
+                    return;
+                } catch (JSONException e) {
+                    callbackContext.error("Failed to retrieve json.");
+                }
+            } else {
                 JSONObject jsonEvent = new JSONObject();
-                jsonEvent.put("RegionId", history.getRegionIdentifier());
-                jsonEvent.put("TimeStamp", history.getFormattedDate());
-                jsonEvent.put("Action", history.getAction());
                 callbackContext.success(jsonEvent);
                 return;
-            } catch (JSONException e) {
-                callbackContext.error("Failed to retrieve json.");
             }
 
         } else {
