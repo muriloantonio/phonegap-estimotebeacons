@@ -256,6 +256,8 @@ public class EstimoteBeacons extends CordovaPlugin {
             getAllEvents(args, callbackContext);
         } else if ("GetLastEvent".equals(action)) {
             getLastEvent(args, callbackContext);
+        } else if ("ClearHistory".equals(action)) {
+            clearAllEvents(args, callbackContext);
         } else {
             return false;
         }
@@ -290,6 +292,12 @@ public class EstimoteBeacons extends CordovaPlugin {
             callbackContext.success(result);
         } else {
             callbackContext.error("Failed to retrieve data");
+        }
+    }
+
+    private void clearAllEvents(CordovaArgs args, final CallbackContext callbackContext) {
+        if (mHistoryStore != null) {
+            mHistoryStore.clear();
         }
     }
 

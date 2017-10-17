@@ -124,6 +124,9 @@ public class HistoryStore {
 
 
     public void clear() {
+        database = localStorageDBHelper.getWritableDatabase();
+        database.delete(LocalStorageDBHelper.HISTORY_TABLE_NAME, null, null);
+        database.close();
         //storage.clear();
     }
 
