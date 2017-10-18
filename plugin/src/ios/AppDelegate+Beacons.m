@@ -12,8 +12,6 @@
 ESTBeaconManager *knewbeaconManager;
 @implementation AppDelegate (Beacons)
 
-
-
 @dynamic beaconManager;
 
 - (void)setBeaconManager:(ESTBeaconManager *)beaconManager
