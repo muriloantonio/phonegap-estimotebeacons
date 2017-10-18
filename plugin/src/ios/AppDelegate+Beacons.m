@@ -8,11 +8,36 @@
 
 #import "AppDelegate+Beacons.h"
 #import "BeaconsManager.h"
+#import <objc/runtime.h>
 
 ESTBeaconManager *knewbeaconManager;
 @implementation AppDelegate (Beacons)
 
 @dynamic beaconManager;
+
+/**
+ *
+ * This is horrible. I should bath myself on acid after this : (
+ *
+ */
++(int) hasSwizzledDidReceiveLocalNotification
+{
+    NSNumber* hasSwizzledDidReceiveLocalNotification = objc_getAssociatedObject(self, @selector(hasSwizzledDidReceiveLocalNotification));
+    
+    if (hasSwizzledDidReceiveLocalNotification == nil)
+    {
+        hasSwizzledDidReceiveLocalNotification = @0;
+    }
+    
+    self.hasSwizzledDiDReceiveLocalNotification = [hasSwizzledDidReceiveLocalNotification intValue];
+    
+    return [hasSwizzledDidReceiveLocalNotification intValue];
+}
+
++(void)setHasSwizzledDiDReceiveLocalNotification:(int)value
+{
+    objc_setAssociatedObject(self, @selector(hasSwizzledDidReceiveLocalNotification), @(value), OBJC_ASSOCIATION_RETAIN);
+}
 
 - (void)setBeaconManager:(ESTBeaconManager *)beaconManager
 {
@@ -36,6 +61,8 @@ ESTBeaconManager *knewbeaconManager;
         Method originalMethod = class_getInstanceMethod(class, originalSelector);
         Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
         
+        
+        
         BOOL didAddMethod = class_addMethod(class, originalSelector, method_getImplementation(swizzledMethod), method_getTypeEncoding(swizzledMethod));
         
         if (didAddMethod) {
@@ -47,16 +74,18 @@ ESTBeaconManager *knewbeaconManager;
         //
         SEL originalSelectorNoti = @selector(application:didReceiveLocalNotification:);
         SEL swizzledSelectorNoti = @selector(beacons_application:didReceiveLocalNotification:);
-        
+
         Method originalMethodNoti = class_getInstanceMethod(class, originalSelectorNoti);
         Method swizzledMethodNoti = class_getInstanceMethod(class, swizzledSelectorNoti);
-        
+
         BOOL didAddMethodNoti = class_addMethod(class, originalSelectorNoti, method_getImplementation(swizzledMethodNoti), method_getTypeEncoding(swizzledMethodNoti));
-        
+
         if (didAddMethodNoti) {
             class_replaceMethod(class, swizzledSelectorNoti, method_getImplementation(originalMethodNoti), method_getTypeEncoding(originalMethodNoti));
+            [self setHasSwizzledDiDReceiveLocalNotification:-1];
         } else {
             method_exchangeImplementations(originalMethodNoti, swizzledMethodNoti);
+            [self setHasSwizzledDiDReceiveLocalNotification:1];
         }
     });
 }
@@ -71,7 +100,7 @@ ESTBeaconManager *knewbeaconManager;
     if ([UIApplication instancesRespondToSelector:@selector(registerUserNotificationSettings:)]) {
         [[UIApplication sharedApplication] registerUserNotificationSettings:[UIUserNotificationSettings settingsForTypes:UIUserNotificationTypeAlert|UIUserNotificationTypeSound categories:nil]];
     }
-    
+
     return [self beacons_application:application didFinishLaunchingWithOptions:launchOptions];
 }
 
@@ -90,8 +119,10 @@ ESTBeaconManager *knewbeaconManager;
         }
         [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
     }
-    
-    [self beacons_application:application didReceiveLocalNotification:notification];
+    int a = [[self class] hasSwizzledDidReceiveLocalNotification];
+    if(a == 1) {
+        [self beacons_application:application didReceiveLocalNotification:notification];
+    }
 }
 
 -(NSMutableDictionary*) getLogsPlistData
@@ -103,9 +134,6 @@ ESTBeaconManager *knewbeaconManager;
     
     return myDictionary;
 }
-
-
-
 
 -(void)beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
@@ -121,11 +149,12 @@ ESTBeaconManager *knewbeaconManager;
         NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
         
         NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-
-        if([beacondata objectForKey:@"logHistory"])
+        
+        NSInteger logHistory = [[beacondata objectForKey:@"logHistory"] integerValue];
+        if(logHistory == 1)
         {
             NSMutableDictionary *LogsHistoryDici =[self getLogsPlistData];
-            if([LogsHistoryDici count]!=nil)
+            if([LogsHistoryDici count] > 0)
             {
                 //plist contains logs
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
@@ -190,7 +219,7 @@ ESTBeaconManager *knewbeaconManager;
                     mins = 9999999;
                 }
                 
-                int verify = [[beacondata objectForKey:@"idle"] integerValue];
+                NSInteger verify = [[beacondata objectForKey:@"idle"] integerValue];
                 
 
                 if(verify == 0)
@@ -249,11 +278,12 @@ ESTBeaconManager *knewbeaconManager;
         NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
         
         NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-        if([beacondata objectForKey:@"logHistory"])
+        NSInteger logHistory = [[beacondata objectForKey:@"logHistory"] integerValue];
+        if(logHistory == 1)
         {
             
             NSMutableDictionary *LogsHistoryDici =[self getLogsPlistData];
-            if([LogsHistoryDici count]!=nil)
+            if([LogsHistoryDici count] > 0)
             {
                 //plist contains logs
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
@@ -324,7 +354,7 @@ ESTBeaconManager *knewbeaconManager;
                 }
                 
                 
-                int verify = [[beacondata objectForKey:@"idle"] integerValue];
+                NSInteger verify = [[beacondata objectForKey:@"idle"] integerValue];
                 
                 if(verify == 0) {
                     [beacondata setValue:0 forKey:@"idle"];
