@@ -148,7 +148,7 @@
 /**
  * Create a region object from a dictionary.
  */
-- (CLBeaconRegion*) createRegionFromDictionary: (NSDictionary*)regionDict
+- (CLBeaconRegion*) createRegionFromDictionary: (NSDictionary*)regionDict andSave: (BOOL) save
 {
     // Default values for the region object.
     NSUUID* uuid = ESTIMOTE_PROXIMITY_UUID;
@@ -188,20 +188,22 @@
         }
     }
     
-    //add to plist and store beacon info
-
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    if([myDictionary count] == 0)
-    {
-        myDictionary=[[NSMutableDictionary alloc]init];
-    }
+    if(save) {
+        //add to plist and store beacon info
         
-    [myDictionary setObject:regionDict forKey:[regionDict objectForKey:@"identifier"]];
-    [myDictionary writeToFile:path atomically:YES];
-
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *documentsDirectory = [paths objectAtIndex:0];
+        NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+        NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+        if([myDictionary count] == 0)
+        {
+            myDictionary=[[NSMutableDictionary alloc]init];
+        }
+        
+        [myDictionary setObject:regionDict forKey:[regionDict objectForKey:@"identifier"]];
+        [myDictionary writeToFile:path atomically:YES];
+    }
+    
     // Create a beacon region object.
     if (majorIsDefined && minorIsDefined)
     {
@@ -226,94 +228,102 @@
     }
 }
 
+-(void)ClearHistory: (CDVInvokedUrlCommand*) command {
+    [self.commandDelegate runInBackground:^{
+        //Get all dicionary entries and convert them into a json
+        NSMutableDictionary *historyEntries = [self getLogsPlistData];
+        [historyEntries removeAllObjects];
+        NSString *filePath = [self getLogsPlistPath];
+        [historyEntries writeToFile:filePath atomically:YES];
+        CDVPluginResult* result = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+    }];
+}
+
 -(void)GetAllEvents:(CDVInvokedUrlCommand*)command
 {
-    //Get all dicionary entries and convert them into a json
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Log.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    
-    if([myDictionary count]>0)
-    {
-        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-        [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
-        NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
+    [self.commandDelegate runInBackground:^{
+        //Get all dicionary entries and convert them into a json
+        NSMutableDictionary *historyEntries = [self getLogsPlistData];
         
-        for (NSMutableDictionary* key in myDictionary) {
-            NSMutableDictionary *partialconvert = [myDictionary objectForKey:key];
-            if(![[partialconvert objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
-            {
-                NSString *dateStringnow = [formatter stringFromDate:[partialconvert objectForKey:@"TimeStamp"]];
-                [partialconvert setValue:dateStringnow forKey:@"TimeStamp"];
+        if([historyEntries count]>0)
+        {
+            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
+            NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
+            
+            for (NSMutableDictionary* key in historyEntries) {
+                NSMutableDictionary *partialconvert = [historyEntries objectForKey:key];
+                if(![[partialconvert objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
+                {
+                    NSString *dateStringnow = [formatter stringFromDate:[partialconvert objectForKey:@"TimeStamp"]];
+                    [partialconvert setValue:dateStringnow forKey:@"TimeStamp"];
+                }
+                else
+                {
+                    [partialconvert setValue:[partialconvert objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
+                }
+                [completedici setObject:partialconvert forKey:key];
             }
-            else
-            {
-                [partialconvert setValue:[partialconvert objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
-            }
-            [completedici setObject:partialconvert forKey:key];
+            NSArray * values = [completedici allValues];
+            NSRange endRange = NSMakeRange(values.count >= 50 ? values.count - 50 : 0, MIN(values.count, 50));
+            NSArray *last50Objects= [values subarrayWithRange:endRange];
+            
+            CDVPluginResult* result = [CDVPluginResult
+                                       resultWithStatus:CDVCommandStatus_OK
+                                       messageAsArray:last50Objects];
+            
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
         }
-        NSArray * values = [completedici allValues];
-        NSRange endRange = NSMakeRange(values.count >= 50 ? values.count - 50 : 0, MIN(values.count, 50));
-        NSArray *last50Objects= [values subarrayWithRange:endRange];
-        
-        CDVPluginResult* result = [CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_OK
-                                   messageAsArray:last50Objects];
-        
-        [self.commandDelegate
-         sendPluginResult:result
-         callbackId:command.callbackId];
-    }
-    
+    }];
 }
 
 -(void)GetLastEvent:(CDVInvokedUrlCommand*)command
 {
-    //Get last entry from logs list and convert them into a json
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Log.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    NSArray * values = [myDictionary allValues];
-    NSDictionary *LastDici = [values lastObject];
-
-    if([LastDici count]>0)
-    {
-        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-        [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
-        NSString *dateStringnow = [formatter stringFromDate:[LastDici objectForKey:@"TimeStamp"]];
-        if(![[LastDici objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
+    [self.commandDelegate runInBackground:^{
+        
+        //Get last entry from logs list and convert them into a json
+        NSMutableDictionary *myDictionary = [self getLogsPlistData];
+        NSArray * values = [myDictionary allValues];
+        NSDictionary *LastDici = [values lastObject];
+        
+        if([LastDici count]>0)
         {
+            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
             NSString *dateStringnow = [formatter stringFromDate:[LastDici objectForKey:@"TimeStamp"]];
-            [LastDici setValue:dateStringnow forKey:@"TimeStamp"];
+            if(![[LastDici objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
+            {
+                NSString *dateStringnow = [formatter stringFromDate:[LastDici objectForKey:@"TimeStamp"]];
+                [LastDici setValue:dateStringnow forKey:@"TimeStamp"];
+            }
+            else
+            {
+                [LastDici setValue:[LastDici objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
+            }
+            
+            NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
+            [completedici setObject:LastDici forKey:@"Last"];
+            
+            CDVPluginResult* result = [CDVPluginResult
+                                       resultWithStatus:CDVCommandStatus_OK
+                                       messageAsDictionary:[completedici objectForKey:@"Last"]];
+            
+            [self.commandDelegate
+             sendPluginResult:result
+             callbackId:command.callbackId];
         }
         else
         {
-            [LastDici setValue:[LastDici objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
+            CDVPluginResult* result = [CDVPluginResult
+                                       resultWithStatus:CDVCommandStatus_OK
+                                       messageAsString:@"null"];
+            
+            [self.commandDelegate
+             sendPluginResult:result
+             callbackId:command.callbackId];
         }
-        
-        NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
-        [completedici setObject:LastDici forKey:@"Last"];
-
-        CDVPluginResult* result = [CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_OK
-                                   messageAsDictionary:[completedici objectForKey:@"Last"]];
-        
-        [self.commandDelegate
-         sendPluginResult:result
-         callbackId:command.callbackId];
-    }
-    else
-    {
-        CDVPluginResult* result = [CDVPluginResult
-                                   resultWithStatus:CDVCommandStatus_OK
-                                   messageAsString:@"null"];
-        
-        [self.commandDelegate
-         sendPluginResult:result
-         callbackId:command.callbackId];
-    }
+    }];
 }
 
 - (void)didReceiveLocalNotification: (NSNotification *)notification {
@@ -328,6 +338,7 @@
 
 -(NSMutableDictionary*) getLogsPlistData
 {
+    
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
     NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Log.plist"];
@@ -336,24 +347,29 @@
     return myDictionary;
 }
 
+-(NSString*) getLogsPlistPath
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Log.plist"];
+    return [path copy];
+}
+
 
 - (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
     NSLog(@"dispatchPush for region");
     
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
     [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
-    
-    if([region objectForKey:@"logHistory"])
+    NSInteger logHistory = [[region objectForKey:@"logHistory"] integerValue];
+    if(logHistory == 1)
     {
-        
-        
         NSMutableDictionary *LogsHistoryDici =[self getLogsPlistData];
         
-        if([LogsHistoryDici count]!=nil)
+        if([LogsHistoryDici count] > 0)
         {
             if([[region objectForKey:@"state"] isEqualToString:@"inside"])
             {
-                //plist contains logs
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
                 [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
                 NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
@@ -364,16 +380,14 @@
                 
                 NSString *dateString = [formatter stringFromDate:[NSDate date]];
                 
-                NSArray *paths1 = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-                NSString *documentsDirectory1 = [paths1 objectAtIndex:0];
-                NSString *path1 = [documentsDirectory1 stringByAppendingPathComponent:@"Log.plist"];
+                
+                NSString *filePath = [self getLogsPlistPath];
                 
                 [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:path1 atomically:YES];
+                [LogsHistoryDici writeToFile:filePath atomically:YES];
             }
             else
             {
-                //plist contains logs
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
                 [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
                 NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
@@ -383,11 +397,8 @@
                 [NewLog setObject:@"exit" forKey:@"Action"];
                 
                 NSString *dateString = [formatter stringFromDate:[NSDate date]];
-                
-                
-                NSArray *paths1 = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-                NSString *documentsDirectory1 = [paths1 objectAtIndex:0];
-                NSString *path1 = [documentsDirectory1 stringByAppendingPathComponent:@"Log.plist"];
+
+                NSString *path1 = [self getLogsPlistPath];
                 
                 [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
                 [LogsHistoryDici writeToFile:path1 atomically:YES];
@@ -397,7 +408,6 @@
         {
             if([[region objectForKey:@"state"] isEqualToString:@"inside"])
             {
-                //plist is empty
                 LogsHistoryDici = [[NSMutableDictionary alloc]init];
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
                 [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
@@ -405,16 +415,14 @@
                 [NewLog setObject:now forKey:@"TimeStamp"];
                 [NewLog setObject:@"entry" forKey:@"Action"];
                  NSString *dateString = [formatter stringFromDate:[NSDate date]];
-                NSArray *paths1 = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-                NSString *documentsDirectory1 = [paths1 objectAtIndex:0];
-                NSString *path1 = [documentsDirectory1 stringByAppendingPathComponent:@"Log.plist"];
+
+                NSString *filePath = [self getLogsPlistPath];
                 
                 [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:path1 atomically:YES];
+                [LogsHistoryDici writeToFile:filePath atomically:YES];
             }
             else
             {
-                //plist is empty
                 LogsHistoryDici = [[NSMutableDictionary alloc]init];
                 NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
                 [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
@@ -423,12 +431,10 @@
                 [NewLog setObject:@"exit" forKey:@"Action"];
                  NSString *dateString = [formatter stringFromDate:[NSDate date]];
                 
-                NSArray *paths1 = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-                NSString *documentsDirectory1 = [paths1 objectAtIndex:0];
-                NSString *path1 = [documentsDirectory1 stringByAppendingPathComponent:@"Log.plist"];
+                NSString *filePath = [self getLogsPlistPath];
                 
                 [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:path1 atomically:YES];
+                [LogsHistoryDici writeToFile:filePath atomically:YES];
             }
             
         }
@@ -438,26 +444,10 @@
         NSData *json = [NSJSONSerialization dataWithJSONObject:region options:NSJSONWritingPrettyPrinted error:nil];
         NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
 
-        /*NSString *jsStatement = [NSString
-                                stringWithFormat:
-                                @"setTimeout( function() { cordova.fireDocumentEvent(\"%@\", {\"notificationData\": %@})}, 0);",
-                                event, jsonString]; */
-        
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:region];
         [pluginResult setKeepCallbackAsBool:YES];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:@"EstimoteBeaconsStaticChannel"];
-        
-    /* if (self.webView && [self.webView isKindOfClass:[UIWebView class]]) {
-            UIWebView *uiWebView = (UIWebView*)self.webView;
-            [uiWebView stringByEvaluatingJavaScriptFromString:jsStatement];
-        } else {
-            if (self.webViewEngine) {
-                [self.webViewEngine evaluateJavaScript:jsStatement completionHandler:nil];
-            } else {
-                NSLog(@"webViewEngine is null");
-            }
-        } */       
-        
+
     }
 }
 
@@ -639,7 +629,6 @@
 }
 
 - (void) deviceReady:(CDVInvokedUrlCommand*) command {
-    NSLog(@"device ready.....");
     
     BeaconsManager *beaconsManager = [BeaconsManager sharedManager];
     NSMutableArray *noti = beaconsManager.notifications;
@@ -648,9 +637,7 @@
         UILocalNotification *localNotification = localNotificationItem;
         
         NSDictionary *userInfo = localNotification.userInfo;
-        NSLog(@"Notifications...... %@", localNotification.userInfo);
         [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
-        
         //Remove notification dispatched
         [beaconsManager removeNotification:localNotification];
     }
@@ -663,9 +650,11 @@
  */
 - (void) beacons_startMonitoringForRegion:(CDVInvokedUrlCommand*)command
 {
-    [self
-     beacons_impl_startMonitoringForRegion:command
-     manager:self.beaconManager];
+    [self.commandDelegate runInBackground:^{
+        [self
+         beacons_impl_startMonitoringForRegion:command
+         manager:self.beaconManager];
+    }];
 }
 
 /**
@@ -673,9 +662,7 @@
  */
 - (void) beacons_stopMonitoringForRegion:(CDVInvokedUrlCommand*)command
 {
-    [self
-     beacons_impl_stopMonitoringForRegion:command
-     manager:self.beaconManager];
+    [self beacons_impl_stopMonitoringForRegion:command manager:self.beaconManager];
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
     NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
@@ -713,7 +700,7 @@
     // Get region dictionary passed from JavaScript and
     // create a beacon region object.
     NSDictionary* regionDictionary = [command argumentAtIndex:0];
-    CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary];
+    CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary andSave:YES];
     
     // Set region notification when display is activated.
     region.notifyEntryStateOnDisplay = (BOOL)[command argumentAtIndex:1];
@@ -748,7 +735,7 @@
     // Get region dictionary passed from JavaScript and
     // create a beacon region object.
     NSDictionary* regionDictionary = [command argumentAtIndex:0];
-    CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary];
+    CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary andSave:NO];
     
     // Stop monitoring.
     [self helper_stopMonitoringForRegion:region manager:aManager];
@@ -807,7 +794,7 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
     [beaconData writeToFile:path atomically:YES];
 }
 
--(BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (int) idle {
+-(BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (NSInteger) idle {
     NSDate *now =[NSDate date];
     //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
     NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
@@ -824,7 +811,7 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
     }
     else{mins = 9999999;}
     
-    int verify = idle;
+    NSInteger verify = idle;
     
     if(mins >= verify || verify == 0)
     {
@@ -844,7 +831,7 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
         NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
         
         NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
-        int verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
+        NSInteger verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
         BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
         
         if(verify == 0)
@@ -879,7 +866,7 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
         NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
         
         NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
-        int verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
+        NSInteger verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
         BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
         
         if(verify == 0)
