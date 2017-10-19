@@ -10,7 +10,7 @@ Plugin forked from Evothings repository to extend its functionalities in order t
 * Local notification if the application is closed and webview-wide DOM event when application is running.
 * A region can be registered with associated notification data and deeplink URL.
 * When the application is opened from a notification, the notification data can be delivered as a deeplink or in the WebView;
-* Turning on the bluetooth will start monitoring for regions. Likewise, turing the bluetooth off will shut the moniroting off. (Android)
+* Turning on the bluetooth will start monitoring for regions. Likewise, turning the bluetooth off will shut the monitoring off. (Android)
 
 ---
 
