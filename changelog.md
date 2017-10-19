@@ -1,5 +1,16 @@
 # Change Log
 
+## Version 0.9.3.os (October 19, 2017)
+
+* Removed unsupported APIs (ranging, scanning and nearables support.)
+* Added history functionality. Regions registered with log history will be saved on the database and can later be fetched using `getAllEvents` and `getLastEvent`. History events do not generate a system notification but are delivered into the application if the app is running in foreground.
+
+iOS updates:
+
+* Added missing description for location usage
+* Fixed bug that caused the application to enter an infinite recursive loop when tapping a region notification
+* Code clean up and removal of unused code
+* Added the ability to clear the history
 
 ## Version 0.9.0 (March 23, 2016)
 
@@ -10,16 +21,17 @@ iOS updates:
 * Added a category to AppDelegate in order to receive enter/exit events from monitored regions.
 * Local notifications are mapped into default NSNoticationCenter and EstimotePlugin listens to default NSNotificationCenter
 * Registered monitored Regions are saved into a plist
-* Added the concept of NotificationRegion 
-* Added authorization request to use notifications in the application. 
+* Added the concept of NotificationRegion
+* Added authorization request to use notifications in the application.
 
 Android updates:
+
 * Update of Estimote Android SDK
 * Added the concept of NotificationRegion
 * Added a background service (BeaconsMonitoringService) to integrate with Estimote SDK, allowing for background monitoring of registered regions
-    * BeaconsMonitoringService is responsible for creating local notifications on entering/exiting a monitoring region OR for sending notification to WebView.
-    * BeaconsMonitoringService is enabled or disabled depending on the status of bluetooth adapter. 
-* Registered regions are saved on SQL-lite database. 
+  * BeaconsMonitoringService is responsible for creating local notifications on entering/exiting a monitoring region OR for sending notification to WebView.
+  * BeaconsMonitoringService is enabled or disabled depending on the status of bluetooth adapter.
+* Registered regions are saved on SQL-lite database.
 
 Other updates:
 

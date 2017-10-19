@@ -7,7 +7,7 @@ import android.content.Intent;
 import android.util.Log;
 
 /**
- * Created by jppg on 01/03/16.
+ * Created by João Gonçalves (jppg) on 01/03/16.
  */
 public class BluetoothStateReceiver extends BroadcastReceiver {
 

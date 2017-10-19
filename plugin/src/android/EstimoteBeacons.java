@@ -1,9 +1,3 @@
-/*
-Android implementation of Cordova plugin for Estimote Beacons.
-
-JavaDoc for Estimote Android API: https://estimote.github.io/Android-SDK/JavaDocs/
-*/
-
 package com.evothings;
 
 import android.Manifest;
