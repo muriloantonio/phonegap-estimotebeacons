@@ -85,7 +85,7 @@
         </config-file>
 
         <config-file target="*-Info.plist" parent="NSLocationAlwaysUsageDescription">
-            <string>This app would like to scan for beacons when in the background.</string>
+            <string>This app would like to scan for beacons when in background.</string>
         </config-file>
         <config-file target="*-Info.plist" parent="NSLocationWhenInUseUsageDescription">
             <string>This app would like to scan for beacons while it is in use.</string>

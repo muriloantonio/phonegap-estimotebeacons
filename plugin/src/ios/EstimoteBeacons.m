@@ -1,7 +1,6 @@
 #import <Cordova/CDV.h>
 #import <EstimoteSDK/ESTUtilityManager.h>
 #import <EstimoteSDK/ESTBeaconManager.h>
-#import <EstimoteSDK/ESTSecureBeaconManager.h>
 #import <EstimoteSDK/ESTCloudManager.h>
 #import <EstimoteSDK/ESTEddystone.h>
 #import <EstimoteSDK/ESTEddystoneManager.h>
@@ -9,8 +8,6 @@
 #import "BeaconsManager.h"
 
 #import "EstimoteBeacons.h"
-
-#define WRITEJS(VAL) [NSString stringWithFormat:@"setTimeout(function() { %@; }, 0);", VAL]
 
 #pragma mark - Estimote Beacons Interface
 
@@ -20,9 +17,9 @@
 
 @interface EstimoteBeacons ()
 <	ESTUtilityManagerDelegate,
-    ESTBeaconManagerDelegate,
-    ESTBeaconManagerDelegate,
-    CBCentralManagerDelegate >
+ESTBeaconManagerDelegate,
+ESTBeaconManagerDelegate,
+CBCentralManagerDelegate >
 
 /**
  * Estimote Utility manager.
@@ -34,22 +31,6 @@
  */
 @property (nonatomic, strong) ESTBeaconManager* beaconManager;
 
-/**
- * Secure beacon manager in the Estimote API.
- */
-@property (nonatomic, strong) ESTSecureBeaconManager* secureBeaconManager;
-
-/**
- * Estimote Cloud manager.
- */
-@property (nonatomic, strong) ESTCloudManager* cloudManager;
-
-/**
- * Dictionary with beacon colors fetched from the cloud.
- * Contains mappings @"UUID:major:minor" -> NSNumber (ESTColor).
- * During fetching of value mapping is @"UUID:major:minor" -> ESTColorUnknown
- */
-@property NSMutableDictionary* beaconColors;
 
 /**
  * Dictionary of callback ids for startRangingBeaconsInRegion.
@@ -83,7 +64,7 @@
 {
     [self beacons_pluginInitialize];
     [self bluetooth_pluginInitialize];
-
+    
     return self;
 }
 
@@ -104,25 +85,17 @@
 - (void) beacons_pluginInitialize
 {
     //NSLog(@"OBJC EstimoteBeacons pluginInitialize");
-
+    
     // Crete utility manager instance.
     self.utilityManager = [ESTUtilityManager new];
     self.utilityManager.delegate = self;
-
+    
     // Crete beacon manager instance.
     self.beaconManager = [ESTBeaconManager new];
     self.beaconManager.delegate = self;
     // This will skip beacons with proximity CLProximityUnknown when ranging.
     self.beaconManager.avoidUnknownStateBeacons = YES;
-
-    // Crete secure beacon manager instance.
-    self.secureBeaconManager = [ESTSecureBeaconManager new];
-    self.secureBeaconManager.delegate = self;
-
-    // Create clound manager.
-    self.cloudManager = [ESTCloudManager new];
-    self.beaconColors = [NSMutableDictionary new];
-
+    
     // Variables that track callback ids.
     self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
     
@@ -136,11 +109,10 @@
 {
     // Reset callback variables.
     self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
-
+    
     // Stop any ongoing scanning.
     [self.utilityManager stopEstimoteBeaconDiscovery];
-
-    // TODO: Stop any ongoing ranging or monitoring.
+    
 }
 
 #pragma mark - Helper methods
@@ -152,7 +124,6 @@
 {
     // Default values for the region object.
     NSUUID* uuid = ESTIMOTE_PROXIMITY_UUID;
-    //NSString* identifier = @"EstimoteSampleRegion";
     NSString* identifier = [self regionHashMapKeyWithUUID:[regionDict objectForKey:@"uuid"] andMajor:[regionDict objectForKey:@"major"] andMinor:[regionDict objectForKey:@"minor"]];
     CLBeaconMajorValue major = 0;
     CLBeaconMinorValue minor = 0;
@@ -160,7 +131,7 @@
     BOOL majorIsDefined = NO;
     BOOL minorIsDefined = NO;
     BOOL secureIsDefined = NO;
-
+    
     // Get region values.
     for (id key in regionDict)
     {
@@ -190,66 +161,62 @@
     
     if(save) {
         //add to plist and store beacon info
-        
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-        NSString *documentsDirectory = [paths objectAtIndex:0];
-        NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-        NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+        NSString *filePath = [EstimoteBeacons getBeaconsPlistPath];
+        NSMutableDictionary *myDictionary = [EstimoteBeacons getBeaconsPlistData];
         if([myDictionary count] == 0)
         {
             myDictionary=[[NSMutableDictionary alloc]init];
         }
         
         [myDictionary setObject:regionDict forKey:[regionDict objectForKey:@"identifier"]];
-        [myDictionary writeToFile:path atomically:YES];
+        [myDictionary writeToFile:filePath atomically:YES];
     }
     
     // Create a beacon region object.
     if (majorIsDefined && minorIsDefined)
     {
         return [[CLBeaconRegion alloc]
-            initWithProximityUUID: uuid
-            major: major
-            minor: minor
-            identifier: identifier];
+                initWithProximityUUID: uuid
+                major: major
+                minor: minor
+                identifier: identifier];
     }
     else if (majorIsDefined)
     {
         return [[CLBeaconRegion alloc]
-            initWithProximityUUID: uuid
-            major: major
-            identifier: identifier];
+                initWithProximityUUID: uuid
+                major: major
+                identifier: identifier];
     }
     else
     {
         return [[CLBeaconRegion alloc]
-            initWithProximityUUID: uuid
-            identifier: identifier];
+                initWithProximityUUID: uuid
+                identifier: identifier];
     }
 }
 
--(void)ClearHistory: (CDVInvokedUrlCommand*) command {
+-(void) ClearHistory: (CDVInvokedUrlCommand*) command {
     [self.commandDelegate runInBackground:^{
         //Get all dicionary entries and convert them into a json
-        NSMutableDictionary *historyEntries = [self getLogsPlistData];
+        NSMutableDictionary *historyEntries = [EstimoteBeacons getLogsPlistData];
         [historyEntries removeAllObjects];
-        NSString *filePath = [self getLogsPlistPath];
+        NSString *filePath = [EstimoteBeacons getLogsPlistPath];
         [historyEntries writeToFile:filePath atomically:YES];
         CDVPluginResult* result = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
     }];
 }
 
--(void)GetAllEvents:(CDVInvokedUrlCommand*)command
+- (void) GetAllEvents:(CDVInvokedUrlCommand*)command
 {
     [self.commandDelegate runInBackground:^{
         //Get all dicionary entries and convert them into a json
-        NSMutableDictionary *historyEntries = [self getLogsPlistData];
+        NSMutableDictionary *historyEntries = [EstimoteBeacons getLogsPlistData];
         
-        if([historyEntries count]>0)
+        if([historyEntries count] > 0)
         {
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
+            NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
             NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
             
             for (NSMutableDictionary* key in historyEntries) {
@@ -278,50 +245,57 @@
     }];
 }
 
--(void)GetLastEvent:(CDVInvokedUrlCommand*)command
+- (void) GetLastEvent:(CDVInvokedUrlCommand*)command
 {
     [self.commandDelegate runInBackground:^{
         
         //Get last entry from logs list and convert them into a json
-        NSMutableDictionary *myDictionary = [self getLogsPlistData];
-        NSArray * values = [myDictionary allValues];
-        NSDictionary *LastDici = [values lastObject];
+        NSMutableDictionary *logsHistoryItems = [EstimoteBeacons getLogsPlistData];
+        NSArray * values = [logsHistoryItems keysSortedByValueUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
+            NSMutableDictionary* obj1Dict = obj1;
+            NSMutableDictionary* obj2Dict = obj2;
+            
+            NSString* dateStr1 = [obj1Dict objectForKey:@"TimeStamp"];
+            NSString* dateStr2 = [obj2Dict objectForKey:@"TimeStamp"];
+            NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+            NSDate* date1 = [formatter dateFromString:dateStr1];
+            NSDate* date2 = [formatter dateFromString:dateStr2];
+            
+            return [date1 compare:date2];
+        }];
         
-        if([LastDici count]>0)
+        NSString* lastItemKey = [values lastObject];
+        NSDictionary *lastItem = [logsHistoryItems objectForKey:lastItemKey];
+        
+        if([lastItem count] > 0)
         {
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
-            NSString *dateStringnow = [formatter stringFromDate:[LastDici objectForKey:@"TimeStamp"]];
-            if(![[LastDici objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
+            if(![[lastItem objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
             {
-                NSString *dateStringnow = [formatter stringFromDate:[LastDici objectForKey:@"TimeStamp"]];
-                [LastDici setValue:dateStringnow forKey:@"TimeStamp"];
+                NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+                NSString *dateStringnow = [formatter stringFromDate:[lastItem objectForKey:@"TimeStamp"]];
+                [lastItem setValue:dateStringnow forKey:@"TimeStamp"];
             }
             else
             {
-                [LastDici setValue:[LastDici objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
+                [lastItem setValue:[lastItem objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
             }
             
-            NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
-            [completedici setObject:LastDici forKey:@"Last"];
+            NSMutableDictionary *completedici = [[NSMutableDictionary alloc] init];
+            [completedici setObject:lastItem forKey:@"Last"];
             
-            CDVPluginResult* result = [CDVPluginResult
-                                       resultWithStatus:CDVCommandStatus_OK
-                                       messageAsDictionary:[completedici objectForKey:@"Last"]];
+            CDVPluginResult* result = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK
+                                                    messageAsDictionary: [completedici objectForKey:@"Last"]];
             
-            [self.commandDelegate
-             sendPluginResult:result
-             callbackId:command.callbackId];
+            [self.commandDelegate sendPluginResult: result
+                                        callbackId: command.callbackId];
         }
         else
         {
-            CDVPluginResult* result = [CDVPluginResult
-                                       resultWithStatus:CDVCommandStatus_OK
-                                       messageAsString:@"null"];
+            CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                                        messageAsString:@"null"];
             
-            [self.commandDelegate
-             sendPluginResult:result
-             callbackId:command.callbackId];
+            [self.commandDelegate sendPluginResult: result
+                                        callbackId: command.callbackId];
         }
     }];
 }
@@ -336,18 +310,29 @@
     }
 }
 
--(NSMutableDictionary*) getLogsPlistData
++ (NSString*) getBeaconsPlistPath
 {
-    
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Log.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+    return [path copy];
+}
+
++ (NSMutableDictionary*) getBeaconsPlistData
+{
+    NSString* filePath = [EstimoteBeacons getBeaconsPlistPath];
+    NSMutableDictionary *myDictionary = [[NSMutableDictionary alloc] initWithContentsOfFile: filePath];
     return myDictionary;
 }
 
--(NSString*) getLogsPlistPath
++ (NSMutableDictionary*) getLogsPlistData
+{
+    NSString *filePath = [self getLogsPlistPath];
+    NSMutableDictionary *myDictionary= [[NSMutableDictionary alloc] initWithContentsOfFile:filePath];
+    return myDictionary;
+}
+
++ (NSString*) getLogsPlistPath
 {
     NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
     NSString *documentsDirectory = [paths objectAtIndex:0];
@@ -357,98 +342,38 @@
 
 
 - (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
-    NSLog(@"dispatchPush for region");
+    NSLog(@"DispatchPush for region");
     
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZ"];
+    NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
     NSInteger logHistory = [[region objectForKey:@"logHistory"] integerValue];
     if(logHistory == 1)
     {
-        NSMutableDictionary *LogsHistoryDici =[self getLogsPlistData];
+        NSMutableDictionary *logsHistoryDict =[EstimoteBeacons getLogsPlistData];
         
-        if([LogsHistoryDici count] > 0)
-        {
-            if([[region objectForKey:@"state"] isEqualToString:@"inside"])
-            {
-                NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
-                NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
-                
-                
-                [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
-                [NewLog setObject:@"entry" forKey:@"Action"];
-                
-                NSString *dateString = [formatter stringFromDate:[NSDate date]];
-                
-                
-                NSString *filePath = [self getLogsPlistPath];
-                
-                [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:filePath atomically:YES];
-            }
-            else
-            {
-                NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
-                NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
-                
-                
-                [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
-                [NewLog setObject:@"exit" forKey:@"Action"];
-                
-                NSString *dateString = [formatter stringFromDate:[NSDate date]];
-
-                NSString *path1 = [self getLogsPlistPath];
-                
-                [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:path1 atomically:YES];
-            }
+        if(!logsHistoryDict) {
+            logsHistoryDict = [[NSMutableDictionary alloc] init];
         }
-        else
+        
+        NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
+        [NewLog setObject:[region objectForKey:@"identifier"] forKey:@"RegionId"];
+        NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
+        [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
+        if([[region objectForKey:@"state"] isEqualToString:@"inside"])
         {
-            if([[region objectForKey:@"state"] isEqualToString:@"inside"])
-            {
-                LogsHistoryDici = [[NSMutableDictionary alloc]init];
-                NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
-                NSDate *now =[NSDate date];
-                [NewLog setObject:now forKey:@"TimeStamp"];
-                [NewLog setObject:@"entry" forKey:@"Action"];
-                 NSString *dateString = [formatter stringFromDate:[NSDate date]];
-
-                NSString *filePath = [self getLogsPlistPath];
-                
-                [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:filePath atomically:YES];
-            }
-            else
-            {
-                LogsHistoryDici = [[NSMutableDictionary alloc]init];
-                NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
-                [NewLog setObject:[region objectForKey:@"uuid"] forKey:@"RegionId"];
-                NSDate *now =[NSDate date];
-                [NewLog setObject:now forKey:@"TimeStamp"];
-                [NewLog setObject:@"exit" forKey:@"Action"];
-                 NSString *dateString = [formatter stringFromDate:[NSDate date]];
-                
-                NSString *filePath = [self getLogsPlistPath];
-                
-                [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
-                [LogsHistoryDici writeToFile:filePath atomically:YES];
-            }
-            
+            [NewLog setObject:@"enter" forKey:@"Action"];
+        } else {
+            [NewLog setObject:@"exit" forKey:@"Action"];
         }
+        NSString *dateString = [formatter stringFromDate:[NSDate date]];
+        NSString *filePath = [EstimoteBeacons getLogsPlistPath];
+        [logsHistoryDict setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
+        [logsHistoryDict writeToFile:filePath atomically:YES];
     }
-    else
-    {
-        NSData *json = [NSJSONSerialization dataWithJSONObject:region options:NSJSONWritingPrettyPrinted error:nil];
-        NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
-
-        CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:region];
-        [pluginResult setKeepCallbackAsBool:YES];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:@"EstimoteBeaconsStaticChannel"];
-
-    }
+    
+    CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:region];
+    [pluginResult setKeepCallbackAsBool:YES];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:@"EstimoteBeaconsStaticChannel"];
+    
 }
 
 - (NSString *) regionHashMapKeyWithUUID: (NSString *)uuid andMajor: (NSNumber *)major andMinor: (NSNumber *)minor {
@@ -496,126 +421,43 @@
     return [NSString stringWithFormat: @"%@-%i-%i", uuid, major, minor];
 }
 
-/**
- * Create a dictionary from a CLBeacon object (used to
- * pass beacon data back to JavaScript).
- */
-- (NSDictionary*) coreLocationBeaconToDictionary:(CLBeacon*)beacon
-{
-    /////////////////////////////////////////////////////
-    // Get beacon color. Fetch color async if not set. //
-    /////////////////////////////////////////////////////
+// Helper to re-write the beacon data on plist file
+- (void) writeToPlistDictionary: (NSMutableDictionary *) beaconData {
+    NSString *path = [EstimoteBeacons getBeaconsPlistPath];
+    [beaconData writeToFile:path atomically:YES];
+}
 
-    // Create key for color dictionary.
-    NSString* beaconKey = [NSString stringWithFormat: @"%@:%@:%@",
-        beacon.proximityUUID.UUIDString,
-        beacon.major,
-        beacon.minor];
++ (NSDateFormatter *)getRegionDateFormatter {
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+    return formatter;
+}
 
-    // We store colors in this dictionary.
-    NSNumber* beaconColor = self.beaconColors[beaconKey];
-
-    // Check if color is set.
-    if (nil == beaconColor)
+- (BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (NSInteger) idle {
+    NSDate *now =[NSDate date];
+    NSDateFormatter * formatter = [EstimoteBeacons getRegionDateFormatter];
+    NSString *strLastNotification = lastNotificationDate;
+    NSDate *lastNotification = [formatter dateFromString:strLastNotification];
+    
+    NSInteger mins = 0;
+    if(lastNotification != nil)
     {
-        // Color is not set. Set color to unknown to begin with.
-        self.beaconColors[beaconKey] = [NSNumber numberWithInt: ESTColorUnknown];
-
-        // Fetch color from cloud.
-        [self.cloudManager
-            fetchColorForBeacon:beacon
-            completion:^(NSObject *value, NSError *error)
-            {
-                // TODO: Check error? Where are errors documented?
-                // Any threading problems setting color value async?
-                self.beaconColors[beaconKey] = value;
-            }];
+        NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
+        long seconds = lroundf(distanceBetweenDates);
+        mins = (seconds % 3600) / 60;
     }
-
-    //////////////////////////////////////////////
-    // Store beacon properties in a dictionary. //
-    //////////////////////////////////////////////
-
-    NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:8];
-
-    [dict setValue:beacon.proximityUUID.UUIDString forKey:@"proximityUUID"];
-    [dict setValue:beacon.major forKey:@"major"];
-    [dict setValue:beacon.minor forKey:@"minor"];
-    [dict setValue:[NSNumber numberWithInteger:beacon.rssi] forKey:@"rssi"];
-    [dict setValue:[NSNumber numberWithInt:beacon.proximity] forKey:@"proximity"];
-    [dict setValue:[NSNumber numberWithDouble:beacon.accuracy] forKey:@"distance"];
-    [dict setValue:beaconColor forKey:@"color"];
-
-    return dict;
-}
-
-/**
- * Create a dictionary from an ESTBluetoothBeacon object (used to
- * pass beacon data back to JavaScript).
- */
-- (NSDictionary*) bluetoothBeaconToDictionary:(ESTBluetoothBeacon*)beacon
-{
-    NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:8];
-        [dict setValue:beacon.major forKey:@"major"];
-    [dict setValue:beacon.minor forKey:@"minor"];
-    [dict setValue:[NSNumber numberWithInteger:beacon.rssi] forKey:@"rssi"];
-    [dict setValue:beacon.macAddress forKey:@"macAddress"];
-    [dict setValue:beacon.measuredPower forKey:@"measuredPower"];
-    [dict setValue:[NSNumber numberWithInteger:beacon.firmwareState] forKey:@"firmwareState"];
-
-    // Properties available on ESTBluetoothBeacon but not used.
-    //@property (nonatomic, strong) CBPeripheral *peripheral;
-    //@property (nonatomic, strong) NSDate *discoveryDate;
-    //@property (nonatomic, strong) NSData *advertisementData;
-
-    // TODO: How to find beacon color during Bluetooth scan?
-    //[dict setValue:[NSNumber numberWithInteger:beacon.color] forKey:@"color"];
-
-    // TODO: Is it possible to find UUID and proximity/distance with new API?
-    //[dict setValue:beacon.proximityUUID.UUIDString forKey:@"proximityUUID"];
-    //[dict setValue:beacon.distance forKey:@"distance"];
-    //[dict setValue:[NSNumber numberWithInt:beacon.proximity] forKey:@"proximity"];
-
-    return dict;
-}
-
-/**
- * Create a dictionary object with ESTBluetoothBeacon beacons.
- */
-- (NSDictionary*) dictionaryWithBluetoothBeacons:(NSArray*)beacons
-{
-    // Convert beacons to a an array of property-value objects.
-    NSMutableArray* beaconArray = [NSMutableArray array];
-    for (ESTBluetoothBeacon* beacon in beacons)
+    else{mins = 9999999;}
+    
+    NSInteger verify = idle;
+    
+    if(mins >= verify || verify == 0)
     {
-        [beaconArray addObject:[self bluetoothBeaconToDictionary:beacon]];
+        return YES;
     }
     
-    return @{
-             @"beacons" : beaconArray
-             };
+    return NO;
 }
 
-/**
- * Create a dictionary object with a CLBeaconRegion and CLBeacon beacons.
- */
-- (NSDictionary*) dictionaryWithRegion:(CLBeaconRegion*)region
-                            andBeacons:(NSArray*)beacons
-{
-    // Convert beacons to a an array of property-value objects.
-    NSMutableArray* beaconArray = [NSMutableArray array];
-    for (CLBeacon* beacon in beacons)
-    {
-        [beaconArray addObject:[self coreLocationBeaconToDictionary:beacon]];
-    }
-    
-    NSDictionary* regionDictionary = [self regionToDictionary:region];
-    
-    return @{
-             @"region" : regionDictionary,
-             @"beacons" : beaconArray
-             };
-}
 
 #pragma mark - CoreBluetooth discovery
 
@@ -651,9 +493,8 @@
 - (void) beacons_startMonitoringForRegion:(CDVInvokedUrlCommand*)command
 {
     [self.commandDelegate runInBackground:^{
-        [self
-         beacons_impl_startMonitoringForRegion:command
-         manager:self.beaconManager];
+        [self beacons_impl_startMonitoringForRegion:command
+                                            manager:self.beaconManager];
     }];
 }
 
@@ -662,31 +503,11 @@
  */
 - (void) beacons_stopMonitoringForRegion:(CDVInvokedUrlCommand*)command
 {
-    [self beacons_impl_stopMonitoringForRegion:command manager:self.beaconManager];
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    NSFileManager *Manager = [NSFileManager defaultManager];
-    [Manager removeItemAtPath: path error:NULL];
-}
-/**
- * Start secure CoreLocation monitoring.
- */
-- (void) beacons_startSecureMonitoringForRegion:(CDVInvokedUrlCommand*)command
-{
-    [self
-     beacons_impl_startMonitoringForRegion:command
-     manager:self.secureBeaconManager];
-}
-
-/**
- * Stop secure CoreLocation monitoring.
- */
-- (void) beacons_stopSecureMonitoringForRegion:(CDVInvokedUrlCommand*)command
-{
-    [self
-     beacons_impl_stopMonitoringForRegion:command
-     manager:self.secureBeaconManager];
+    [self.commandDelegate runInBackground:^{
+        [self beacons_impl_stopMonitoringForRegion:command
+                                           manager:self.beaconManager];
+    }];
+    
 }
 
 /**
@@ -709,9 +530,8 @@
     [self helper_stopMonitoringForRegion:region manager:aManager];
     
     // Save callback id for the region.
-    [self.callbackIds_beaconsMonitoring
-     setObject:command.callbackId
-     forKey:[self regionDictionaryKey:region]];
+    [self.callbackIds_beaconsMonitoring setObject: command.callbackId
+                                           forKey: [self regionDictionaryKey:region]];
     
     // Start monitoring.
     [aManager startMonitoringForRegion:region];
@@ -741,16 +561,19 @@
     [self helper_stopMonitoringForRegion:region manager:aManager];
     
     // Respond to JavaScript with OK.
-    [self.commandDelegate
-     sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
-     callbackId:command.callbackId];
+    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
+                                callbackId:command.callbackId];
 }
 
 - (void) helper_stopMonitoringForRegion:(CLBeaconRegion*)region
                                 manager:(id)aManager
 {
     // Stop monitoring the region.
-    [aManager stopMonitoringForRegion:region];
+    for (CLRegion* registeredRegion in [aManager monitoredRegions]) {
+        if([registeredRegion.identifier isEqual:region.identifier]) {
+            [aManager stopMonitoringForRegion:registeredRegion];
+        }
+    }
     
     // Clear any existing callback.
     NSString* callbackId = [self.callbackIds_beaconsMonitoring
@@ -766,59 +589,13 @@
          callbackId:callbackId];
         
         // Clear callback id.
-        [self.callbackIds_beaconsMonitoring
-         removeObjectForKey:[self regionDictionaryKey:region]];
+        [self.callbackIds_beaconsMonitoring removeObjectForKey: [self regionDictionaryKey:region]];
     }
 }
 
-- (void) beaconManager:(id)manager
-didStartMonitoringForRegion:(CLBeaconRegion *)region
+- (void) beaconManager:(id)manager didStartMonitoringForRegion:(CLBeaconRegion *)region
 {
     // Not used.
-}
--(NSMutableDictionary*) getPlistData
-{
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    
-    return myDictionary;
-}
-
-// Helper to re-write the beacon data on plist file
--(void) writeToPlistDictionarity: (NSMutableDictionary *) beaconData {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    [beaconData writeToFile:path atomically:YES];
-}
-
--(BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (NSInteger) idle {
-    NSDate *now =[NSDate date];
-    //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-    NSString *strLastNotification = lastNotificationDate;
-    NSDate *lastNotification = [formatter dateFromString:strLastNotification];
-    
-    NSInteger mins = 0;
-    if(lastNotification != nil)
-    {
-        NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
-        long seconds = lroundf(distanceBetweenDates);
-        mins = (seconds % 3600) / 60;
-    }
-    else{mins = 9999999;}
-    
-    NSInteger verify = idle;
-    
-    if(mins >= verify || verify == 0)
-    {
-        return YES;
-    }
-    
-    return NO;
 }
 
 - (void) beaconManager:(id)manager
@@ -827,33 +604,8 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateActive)
     {
-        NSMutableDictionary *Beacondata = [self getPlistData];
-        NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
-        
-        NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
-        NSInteger verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
-        BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
-        
-        if(verify == 0)
-            [SelectedBeacon setValue:0 forKey:@"idle"];
-        
-        if(resultIdleValidation)
-        {
-            [SelectedBeacon setValue:@"inside" forKey:@"state"];
-            [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
-            [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-enter"];
-            
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-            NSString *dateString = [formatter stringFromDate:[NSDate date]];
-            
-            [SelectedBeacon setValue:dateString forKey:@"sentnotification"];
-            
-            [Beacondata setObject:SelectedBeacon forKey:region.identifier];
-            [self writeToPlistDictionarity:Beacondata];
-        }
+        [self handleRegionEvent:manager region:region forEventType:@"ENTER"];
     }
-    // Not used.
 }
 
 - (void) beaconManager:(id)manager
@@ -862,42 +614,40 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateActive)
     {
-        NSMutableDictionary *Beacondata = [self getPlistData];
-        NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
-        
-        NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
-        NSInteger verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
-        BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
-        
-        if(verify == 0)
-        [SelectedBeacon setValue:0 forKey:@"idle"];
-        
-        if(resultIdleValidation)
-        {
-            [SelectedBeacon setValue:@"outside" forKey:@"state"];
-            [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
-            [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-exit"];
-            
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-            NSString *dateString = [formatter stringFromDate:[NSDate date]];
-            
-            [SelectedBeacon setValue:dateString forKey:@"sentnotification"];
-            
-            
-            [Beacondata setObject:SelectedBeacon forKey:region.identifier];
-            [self writeToPlistDictionarity:Beacondata];
-            
-            //[beacondata setValue:nowregister forKey:@"sentnotification"];
-            
-            
-          /*  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-            NSString *documentsDirectory = [paths objectAtIndex:0];
-            NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-            [Beacondata writeToFile:path atomically:YES]; */
-
-        }
+        [self handleRegionEvent:manager region:region forEventType:@"EXIT"];
     }
+}
+
+- (void) handleRegionEvent: (CLLocationManager*) manager
+                    region: (CLBeaconRegion*) region
+              forEventType: (NSString*) eventType {
+    
+    NSMutableDictionary *beaconsData = [EstimoteBeacons getBeaconsPlistData];
+    NSMutableDictionary *beacon = [beaconsData valueForKey:region.identifier];
+    NSString *strLastNotification = [beacon objectForKey:@"sentnotification"];
+    NSInteger idleTime = [[beacon objectForKey:@"idle"] integerValue];
+    BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:idleTime];
+    
+    if(idleTime == 0)
+    {
+        [beacon setValue:0 forKey:@"idle"];
+    }
+    
+    if(resultIdleValidation)
+    {
+        NSString* state = [eventType isEqualToString:@"ENTER"] ? @"inside" : @"outside";
+        NSString* event = [eventType isEqualToString:@"ENTER"] ? @"beacon-monitor-enter" : @"beacon-monitor-exit";
+        
+        [beacon setValue:state forKey:@"state"];
+        [beacon setValue:@"false" forKey:@"openedFromNotification"];
+        [self dispatchPush:beacon forStateEvent:event];
+        NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+        NSString *dateString = [formatter stringFromDate:[NSDate date]];
+        [beacon setValue:dateString forKey:@"sentnotification"];
+        [beaconsData setObject:beacon forKey:region.identifier];
+        [self writeToPlistDictionary:beaconsData];
+    }
+    
 }
 
 /**
@@ -907,7 +657,6 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
      didDetermineState:(CLRegionState)state
              forRegion:(CLBeaconRegion*)region
 {
-    //NSLog(@"OBJC didDetermineStateforRegion");
     
     // Send result to JavaScript.
     NSString* callbackId = [self.callbackIds_beaconsMonitoring
@@ -919,14 +668,14 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
         switch (state)
         {
             case CLRegionStateInside:
-            stateString = @"inside";
-            break;
+                stateString = @"inside";
+                break;
             case CLRegionStateOutside:
-            stateString = @"outside";
-            break;
+                stateString = @"outside";
+                break;
             case CLRegionStateUnknown:
             default:
-            stateString = @"unknown";
+                stateString = @"unknown";
         }
         
         // Create result object.
@@ -949,8 +698,7 @@ didStartMonitoringForRegion:(CLBeaconRegion *)region
 /**
  * CoreLocation monitoring error event.
  */
-- (void) beaconManager:(id)manager
-monitoringDidFailForRegion:(CLBeaconRegion*)region
+- (void) beaconManager:(id)manager monitoringDidFailForRegion:(CLBeaconRegion*)region
              withError:(NSError*)error
 {
     // Send error message before callback is cleared.
@@ -1035,53 +783,6 @@ monitoringDidFailForRegion:(CLBeaconRegion*)region
      callbackId:command.callbackId];
 }
 
-#pragma mark - Config methods
-
-- (void) beacons_enableAnalytics: (CDVInvokedUrlCommand*)command
-{
-    BOOL enable = [[command argumentAtIndex: 0] boolValue];
-    
-    [ESTCloudManager enableAnalytics: enable];
-    
-    [self.commandDelegate
-     sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-     callbackId: command.callbackId];
-}
-
-- (void) beacons_isAnalyticsEnabled: (CDVInvokedUrlCommand*)command
-{
-    BOOL isAnalyticsEnabled = [ESTCloudManager isAnalyticsEnabled];
-    
-    [self.commandDelegate
-     sendPluginResult: [CDVPluginResult
-                        resultWithStatus: CDVCommandStatus_OK
-                        messageAsBool: isAnalyticsEnabled]
-     callbackId: command.callbackId];
-}
-
-- (void) beacons_isAuthorized: (CDVInvokedUrlCommand*)command
-{
-    BOOL isAuthorized = [ESTCloudManager isAuthorized];
-    
-    [self.commandDelegate
-     sendPluginResult: [CDVPluginResult
-                        resultWithStatus: CDVCommandStatus_OK
-                        messageAsBool: isAuthorized]
-     callbackId: command.callbackId];
-}
-
-- (void) beacons_setupAppIDAndAppToken: (CDVInvokedUrlCommand*)command
-{
-    NSString* appID = [command argumentAtIndex: 0];
-    NSString* appToken = [command argumentAtIndex: 1];
-    
-    [ESTCloudManager setupAppID: appID andAppToken: appToken];
-    
-    [self.commandDelegate
-     sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-     callbackId: command.callbackId];
-}
-
 #pragma mark - Bluetooth State Implementation
 
 /*********************************************************/
@@ -1120,7 +821,7 @@ monitoringDidFailForRegion:(CLBeaconRegion*)region
 
 #pragma mark - Bluetooth on/off handler
 
-- (void)centralManagerDidUpdateState:(CBCentralManager *)central
+- (void) centralManagerDidUpdateState:(CBCentralManager *)central
 {
     if ([central state] == CBCentralManagerStatePoweredOn)
     {
