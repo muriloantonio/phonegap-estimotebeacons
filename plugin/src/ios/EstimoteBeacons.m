@@ -1,10 +1,6 @@
 #import <Cordova/CDV.h>
 #import <EstimoteSDK/ESTUtilityManager.h>
 #import <EstimoteSDK/ESTBeaconManager.h>
-#import <EstimoteSDK/ESTSecureBeaconManager.h>
-#import <EstimoteSDK/ESTNearableManager.h>
-#import <EstimoteSDK/ESTTriggerManager.h>
-#import <EstimoteSDK/ESTNearableDefinitions.h>
 #import <EstimoteSDK/ESTCloudManager.h>
 #import <EstimoteSDK/ESTEddystone.h>
 #import <EstimoteSDK/ESTEddystoneManager.h>
@@ -12,57 +8,6 @@
 #import "BeaconsManager.h"
 
 #import "EstimoteBeacons.h"
-
-#define WRITEJS(VAL) [NSString stringWithFormat:@"setTimeout(function() { %@; }, 0);", VAL]
-
-#pragma mark - Estimote Triggers Declarations
-
-/*********************************************************/
-/************ Estimote Triggers Declarations *************/
-/*********************************************************/
-
-#define EST_CDV_RULE_TYPE_GENERIC 1
-#define EST_CDV_RULE_TYPE_NEARABLE_IDENTIFIER 2
-#define EST_CDV_RULE_TYPE_NEARABLE_TYPE 3
-#define EST_CDV_RULE_TYPE_IN_RANGE_OF_NEARABLE_IDENTIFIER 4
-#define EST_CDV_RULE_TYPE_IN_RANGE_OF_NEARABLE_TYPE 5
-#define EST_CDV_RULE_TYPE_OUTSIDE_RANGE_OF_NEARABLE_IDENTIFIER 6
-#define EST_CDV_RULE_TYPE_OUTSIDE_RANGE_OF_NEARABLE_TYPE 7
-
-// **************** Trigger object ****************
-
-@interface ESTCDVTrigger : NSObject
-
-@property NSString* triggerIdentifier;
-@property NSString* callbackId;
-@property ESTTrigger* nativeTrigger;
-@property NSDictionary* nativeRules;  // ruleIdentifier -> ESTRule
-
-@end
-
-// **************** Generic rule ****************
-
-@interface ESTCDVRuleGeneric : ESTRule
-
-@property id pluginManager;
-@property NSString* ruleIdentifier;
-@property NSString* triggerIdentifier;
-
-- (void) update;
-
-@end
-
-// **************** Nearable rule ****************
-
-@interface ESTCDVRuleNearable : ESTNearableRule
-
-@property id pluginManager;
-@property NSString* ruleIdentifier;
-@property NSString* triggerIdentifier;
-
-- (void) updateWithNearable: (ESTNearable*)nearable;
-
-@end
 
 #pragma mark - Estimote Beacons Interface
 
@@ -72,11 +17,9 @@
 
 @interface EstimoteBeacons ()
 <	ESTUtilityManagerDelegate,
-	ESTBeaconManagerDelegate,
-	ESTBeaconManagerDelegate,
-	ESTNearableManagerDelegate,
-	ESTTriggerManagerDelegate,
-	CBCentralManagerDelegate >
+ESTBeaconManagerDelegate,
+ESTBeaconManagerDelegate,
+CBCentralManagerDelegate >
 
 /**
  * Estimote Utility manager.
@@ -88,85 +31,12 @@
  */
 @property (nonatomic, strong) ESTBeaconManager* beaconManager;
 
-/**
- * Secure beacon manager in the Estimote API.
- */
-@property (nonatomic, strong) ESTSecureBeaconManager* secureBeaconManager;
-
-/**
- * Estimote Cloud manager.
- */
-@property (nonatomic, strong) ESTCloudManager* cloudManager;
-
-/**
- * Dictionary with beacon colors fetched from the cloud.
- * Contains mappings @"UUID:major:minor" -> NSNumber (ESTColor).
- * During fetching of value mapping is @"UUID:major:minor" -> ESTColorUnknown
- */
-@property NSMutableDictionary* beaconColors;
-
-/**
- * EddyStone manager in the Estimote API.
- * TODO: Implement Eddystone support.
- */
-@property (nonatomic, strong) ESTEddystoneManager* eddystoneManager;
-
-/**
- * Callback id for startEstimoteBeaconsDiscoveryForRegion.
- */
-@property NSString* callbackId_beaconsDiscovery;
-
-/**
- * Dictionary of callback ids for startRangingBeaconsInRegion.
- * Region identifiers are used as keys.
- */
-@property NSMutableDictionary* callbackIds_beaconsRanging;
 
 /**
  * Dictionary of callback ids for startRangingBeaconsInRegion.
  * Region identifiers are used as keys.
  */
 @property NSMutableDictionary* callbackIds_beaconsMonitoring;
-
-/**
- * The nearable manager in the Estimote API.
- */
-@property (nonatomic, strong) ESTNearableManager* nearableManager;
-
-/**
- * Dictionary of callback ids for startRangingForIdentifier.
- * Nearable identifiers are used as keys.
- */
-@property NSMutableDictionary* callbackIds_nearablesRangingIdentifier;
-
-/**
- * Dictionary of callback ids for startRangingForType.
- * Nearable types are used as keys.
- */
-@property NSMutableDictionary* callbackIds_nearablesRangingType;
-
-/**
- * Dictionary of callback ids for startMonitoringForIdentifier.
- * Nearable identifiers are used as keys.
- */
-@property NSMutableDictionary* callbackIds_nearablesMonitoringIdentifier;
-
-/**
- * Dictionary of callback ids for startMonitoringForType.
- * Nearable types are used as keys.
- */
-@property NSMutableDictionary* callbackIds_nearablesMonitoringType;
-
-/**
- * The trigger manager in the Estimote API.
- */
-@property (nonatomic, strong) ESTTriggerManager* triggerManager;
-
-/**
- * Dictionary of trigger holder objects.
- * Trigger identifiers are used as keys.
- */
-@property NSMutableDictionary* triggers;
 
 /**
  * Bluetooth manager.
@@ -177,6 +47,8 @@
  * Variable that tracks Bluetooth state.
  */
 @property bool bluetoothState;
+
+@property bool isDeviceReady;
 
 @end
 
@@ -192,12 +64,10 @@
 
 - (EstimoteBeacons*)pluginInitialize
 {
-	[self beacons_pluginInitialize];
-	[self nearables_pluginInitialize];
-	[self triggers_pluginInitialize];
-	[self bluetooth_pluginInitialize];
-
-	return self;
+    [self beacons_pluginInitialize];
+    [self bluetooth_pluginInitialize];
+    
+    return self;
 }
 
 /**
@@ -206,10 +76,9 @@
  */
 - (void) onReset
 {
-	[self beacons_onReset];
-	[self nearables_onReset];
-	[self triggers_onReset];
-	[self bluetooth_onReset];
+    self.isDeviceReady = NO;
+    [self beacons_onReset];
+    [self bluetooth_onReset];
 }
 
 /*********************************************************/
@@ -218,50 +87,50 @@
 
 - (void) beacons_pluginInitialize
 {
-	//NSLog(@"OBJC EstimoteBeacons pluginInitialize");
-
-	// Crete utility manager instance.
-	self.utilityManager = [ESTUtilityManager new];
-	self.utilityManager.delegate = self;
-
-	// Crete beacon manager instance.
-	self.beaconManager = [ESTBeaconManager new];
-	self.beaconManager.delegate = self;
-	// This will skip beacons with proximity CLProximityUnknown when ranging.
-	self.beaconManager.avoidUnknownStateBeacons = YES;
-
-	// Crete secure beacon manager instance.
-	self.secureBeaconManager = [ESTSecureBeaconManager new];
-	self.secureBeaconManager.delegate = self;
-
-	// Create clound manager.
-	self.cloudManager = [ESTCloudManager new];
-	self.beaconColors = [NSMutableDictionary new];
-
-	// TODO: Create eddystoneBeaconManager and implement related methods.
-
-	// Variables that track callback ids.
-	self.callbackId_beaconsDiscovery = nil;
-	self.callbackIds_beaconsRanging = [NSMutableDictionary new];
-	self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
+    // Crete utility manager instance.
+    self.utilityManager = [ESTUtilityManager new];
+    self.utilityManager.delegate = self;
+    
+    // Crete beacon manager instance.
+    self.beaconManager = [ESTBeaconManager new];
+    self.beaconManager.delegate = self;
+    // This will skip beacons with proximity CLProximityUnknown when ranging.
+    self.beaconManager.avoidUnknownStateBeacons = YES;
+    
+    // Variables that track callback ids.
+    self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(didReceiveLocalNotification:)
                                                  name:@"CDVLocalNotificationBeacon"
                                                object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onPause)
+                                                 name:UIApplicationDidEnterBackgroundNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onResume)
+                                                 name:UIApplicationWillEnterForegroundNotification object:nil];
+    
+}
+
+- (void) onResume {
+    self.isDeviceReady = YES;
+}
+
+- (void) onPause {
+    self.isDeviceReady = NO;
 }
 
 - (void) beacons_onReset
 {
-	// Reset callback variables.
-	self.callbackId_beaconsDiscovery = nil;
-	self.callbackIds_beaconsRanging = [NSMutableDictionary new];
-	self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
-
-	// Stop any ongoing scanning.
-	[self.utilityManager stopEstimoteBeaconDiscovery];
-
-	// TODO: Stop any ongoing ranging or monitoring.
+    // Reset callback variables.
+    self.callbackIds_beaconsMonitoring = [NSMutableDictionary new];
+    
+    // Stop any ongoing scanning.
+    [self.utilityManager stopEstimoteBeaconDiscovery];
+    
 }
 
 #pragma mark - Helper methods
@@ -269,125 +138,261 @@
 /**
  * Create a region object from a dictionary.
  */
-- (CLBeaconRegion*) createRegionFromDictionary: (NSDictionary*)regionDict
+- (CLBeaconRegion*) createRegionFromDictionary: (NSDictionary*)regionDict andSave: (BOOL) save
 {
-	// Default values for the region object.
-	NSUUID* uuid = ESTIMOTE_PROXIMITY_UUID;
-	//NSString* identifier = @"EstimoteSampleRegion";
+    // Default values for the region object.
+    NSUUID* uuid = ESTIMOTE_PROXIMITY_UUID;
     NSString* identifier = [self regionHashMapKeyWithUUID:[regionDict objectForKey:@"uuid"] andMajor:[regionDict objectForKey:@"major"] andMinor:[regionDict objectForKey:@"minor"]];
-	CLBeaconMajorValue major = 0;
-	CLBeaconMinorValue minor = 0;
-	BOOL secure = false;
-	BOOL majorIsDefined = NO;
-	BOOL minorIsDefined = NO;
-	BOOL secureIsDefined = NO;
-
-	// Get region values.
-	for (id key in regionDict)
-	{
-		NSString* value = regionDict[key];
-		if ([key isEqualToString:@"uuid"])
-		{
-			uuid = [[NSUUID alloc] initWithUUIDString: value];
-		}
-		else if ([key isEqualToString:@"identifier"])
-		{
-			identifier = value;
-		}
-		else if ([key isEqualToString:@"major"])
-		{
-			major = [value integerValue];
-			majorIsDefined = YES; }
-		else if ([key isEqualToString:@"minor"])
-		{
-			minor = [value integerValue];
-			minorIsDefined = YES; }
-		else if ([key isEqualToString:@"secure"])
-		{
-			secure = [value boolValue];
-			secureIsDefined = YES;
+    CLBeaconMajorValue major = 0;
+    CLBeaconMinorValue minor = 0;
+    BOOL secure = false;
+    BOOL majorIsDefined = NO;
+    BOOL minorIsDefined = NO;
+    BOOL secureIsDefined = NO;
+    
+    // Get region values.
+    for (id key in regionDict)
+    {
+        NSString* value = regionDict[key];
+        if ([key isEqualToString:@"uuid"])
+        {
+            uuid = [[NSUUID alloc] initWithUUIDString: value];
+        }
+        else if ([key isEqualToString:@"identifier"])
+        {
+            identifier = value;
+        }
+        else if ([key isEqualToString:@"major"])
+        {
+            major = [value integerValue];
+            majorIsDefined = YES; }
+        else if ([key isEqualToString:@"minor"])
+        {
+            minor = [value integerValue];
+            minorIsDefined = YES; }
+        else if ([key isEqualToString:@"secure"])
+        {
+            secure = [value boolValue];
+            secureIsDefined = YES;
+        }
+    }
+    
+    if(save) {
+        //add to plist and store beacon info
+        NSString *filePath = [EstimoteBeacons getBeaconsPlistPath];
+        NSMutableDictionary *myDictionary = [EstimoteBeacons getBeaconsPlistData];
+        if([myDictionary count] == 0)
+        {
+            myDictionary=[[NSMutableDictionary alloc]init];
         }
         
-       	}
-    
-    //add to plist and store beacon info
-
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    if([myDictionary count] == 0)
-    {
-        myDictionary=[[NSMutableDictionary alloc]init];
+        [myDictionary setObject:regionDict forKey:[regionDict objectForKey:@"identifier"]];
+        [myDictionary writeToFile:filePath atomically:YES];
     }
+    
+    // Create a beacon region object.
+    if (majorIsDefined && minorIsDefined)
+    {
+        return [[CLBeaconRegion alloc]
+                initWithProximityUUID: uuid
+                major: major
+                minor: minor
+                identifier: identifier];
+    }
+    else if (majorIsDefined)
+    {
+        return [[CLBeaconRegion alloc]
+                initWithProximityUUID: uuid
+                major: major
+                identifier: identifier];
+    }
+    else
+    {
+        return [[CLBeaconRegion alloc]
+                initWithProximityUUID: uuid
+                identifier: identifier];
+    }
+}
+
+-(void) ClearHistory: (CDVInvokedUrlCommand*) command {
+    [self.commandDelegate runInBackground:^{
+        //Get all dicionary entries and convert them into a json
+        NSMutableDictionary *historyEntries = [EstimoteBeacons getLogsPlistData];
+        [historyEntries removeAllObjects];
+        NSString *filePath = [EstimoteBeacons getLogsPlistPath];
+        [historyEntries writeToFile:filePath atomically:YES];
+        CDVPluginResult* result = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK];
+        [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+    }];
+}
+
+- (void) GetAllEvents:(CDVInvokedUrlCommand*)command
+{
+    [self.commandDelegate runInBackground:^{
+        //Get all dicionary entries and convert them into a json
+        NSMutableDictionary *historyEntries = [EstimoteBeacons getLogsPlistData];
         
-    
-    [myDictionary setObject:regionDict forKey:[regionDict objectForKey:@"identifier"]];
-    [myDictionary writeToFile:path atomically:YES];
+        if([historyEntries count] > 0)
+        {
+            NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+            NSMutableDictionary *completedici = [[NSMutableDictionary alloc]init];
+            
+            for (NSMutableDictionary* key in historyEntries) {
+                NSMutableDictionary *partialconvert = [historyEntries objectForKey:key];
+                if(![[partialconvert objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
+                {
+                    NSString *dateStringnow = [formatter stringFromDate:[partialconvert objectForKey:@"TimeStamp"]];
+                    [partialconvert setValue:dateStringnow forKey:@"TimeStamp"];
+                }
+                else
+                {
+                    [partialconvert setValue:[partialconvert objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
+                }
+                [completedici setObject:partialconvert forKey:key];
+            }
+            NSArray * values = [completedici allValues];
+            NSRange endRange = NSMakeRange(values.count >= 50 ? values.count - 50 : 0, MIN(values.count, 50));
+            NSArray *last50Objects= [values subarrayWithRange:endRange];
+            
+            CDVPluginResult* result = [CDVPluginResult
+                                       resultWithStatus:CDVCommandStatus_OK
+                                       messageAsArray:last50Objects];
+            
+            [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
+        }
+    }];
+}
 
-
-    
-    
-	// Create a beacon region object.
-	if (majorIsDefined && minorIsDefined)
-	{
-		return [[CLBeaconRegion alloc]
-			initWithProximityUUID: uuid
-			major: major
-			minor: minor
-			identifier: identifier];
-	}
-	else if (majorIsDefined)
-	{
-		return [[CLBeaconRegion alloc]
-			initWithProximityUUID: uuid
-			major: major
-			identifier: identifier];
-	}
-	else
-	{
-		return [[CLBeaconRegion alloc]
-			initWithProximityUUID: uuid
-			identifier: identifier];
-	}
+- (void) GetLastEvent:(CDVInvokedUrlCommand*)command
+{
+    [self.commandDelegate runInBackground:^{
+        
+        //Get last entry from logs list and convert them into a json
+        NSMutableDictionary *logsHistoryItems = [EstimoteBeacons getLogsPlistData];
+        NSArray * values = [logsHistoryItems keysSortedByValueUsingComparator:^NSComparisonResult(id  _Nonnull obj1, id  _Nonnull obj2) {
+            NSMutableDictionary* obj1Dict = obj1;
+            NSMutableDictionary* obj2Dict = obj2;
+            
+            NSString* dateStr1 = [obj1Dict objectForKey:@"TimeStamp"];
+            NSString* dateStr2 = [obj2Dict objectForKey:@"TimeStamp"];
+            NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+            NSDate* date1 = [formatter dateFromString:dateStr1];
+            NSDate* date2 = [formatter dateFromString:dateStr2];
+            
+            return [date1 compare:date2];
+        }];
+        
+        NSString* lastItemKey = [values lastObject];
+        NSDictionary *lastItem = [logsHistoryItems objectForKey:lastItemKey];
+        
+        if([lastItem count] > 0)
+        {
+            if(![[lastItem objectForKey:@"TimeStamp"] isKindOfClass:[NSString class]])
+            {
+                NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+                NSString *dateStringnow = [formatter stringFromDate:[lastItem objectForKey:@"TimeStamp"]];
+                [lastItem setValue:dateStringnow forKey:@"TimeStamp"];
+            }
+            else
+            {
+                [lastItem setValue:[lastItem objectForKey:@"TimeStamp"] forKey:@"TimeStamp"];
+            }
+            
+            NSMutableDictionary *completedici = [[NSMutableDictionary alloc] init];
+            [completedici setObject:lastItem forKey:@"Last"];
+            
+            CDVPluginResult* result = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK
+                                                    messageAsDictionary: [completedici objectForKey:@"Last"]];
+            
+            [self.commandDelegate sendPluginResult: result
+                                        callbackId: command.callbackId];
+        }
+        else
+        {
+            CDVPluginResult* result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                                        messageAsString:@"null"];
+            
+            [self.commandDelegate sendPluginResult: result
+                                        callbackId: command.callbackId];
+        }
+    }];
 }
 
 - (void)didReceiveLocalNotification: (NSNotification *)notification {
-    NSLog(@"didReceiveLocalNotification by Notification Center");
     UILocalNotification *castedotification = notification.object;
     NSDictionary *userInfo = castedotification.userInfo;
     if([userInfo objectForKey:@"beacon.notification.data"] != nil)
     {
-    	[self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
+        if(self.isDeviceReady)
+        {
+            [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
+        } else {
+            [[BeaconsManager sharedManager] addNewNotification:castedotification];
+        }
     }
 }
 
-- (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
-    NSLog(@"dispatchPush for region");
-    NSData *json = [NSJSONSerialization dataWithJSONObject:region options:NSJSONWritingPrettyPrinted error:nil];
-    NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
++ (NSString*) getBeaconsPlistPath
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
+    return [path copy];
+}
 
-    /*NSString *jsStatement = [NSString
-                             stringWithFormat:
-                             @"setTimeout( function() { cordova.fireDocumentEvent(\"%@\", {\"notificationData\": %@})}, 0);",
-                             event, jsonString]; */
++ (NSMutableDictionary*) getBeaconsPlistData
+{
+    NSString* filePath = [EstimoteBeacons getBeaconsPlistPath];
+    NSMutableDictionary *myDictionary = [[NSMutableDictionary alloc] initWithContentsOfFile: filePath];
+    return myDictionary;
+}
+
++ (NSMutableDictionary*) getLogsPlistData
+{
+    NSString *filePath = [self getLogsPlistPath];
+    NSMutableDictionary *myDictionary= [[NSMutableDictionary alloc] initWithContentsOfFile:filePath];
+    return myDictionary;
+}
+
++ (NSString*) getLogsPlistPath
+{
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Log.plist"];
+    return [path copy];
+}
+
+- (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
+    NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+    NSInteger logHistory = [[region objectForKey:@"logHistory"] integerValue];
+    if(logHistory == 1)
+    {
+        NSMutableDictionary *logsHistoryDict =[EstimoteBeacons getLogsPlistData];
+        
+        if(!logsHistoryDict) {
+            logsHistoryDict = [[NSMutableDictionary alloc] init];
+        }
+        
+        NSMutableDictionary *NewLog = [[NSMutableDictionary alloc]init];
+        [NewLog setObject:[region objectForKey:@"identifier"] forKey:@"RegionId"];
+        NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
+        [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
+        if([[region objectForKey:@"state"] isEqualToString:@"inside"])
+        {
+            [NewLog setObject:@"enter" forKey:@"Action"];
+        } else {
+            [NewLog setObject:@"exit" forKey:@"Action"];
+        }
+        NSString *dateString = [formatter stringFromDate:[NSDate date]];
+        NSString *filePath = [EstimoteBeacons getLogsPlistPath];
+        [logsHistoryDict setObject:NewLog forKey:[dateString stringByAppendingString:[region objectForKey:@"uuid"]]];
+        [logsHistoryDict writeToFile:filePath atomically:YES];
+    }
     
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:region];
     [pluginResult setKeepCallbackAsBool:YES];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:@"EstimoteBeaconsStaticChannel"];
     
-   /* if (self.webView && [self.webView isKindOfClass:[UIWebView class]]) {
-        UIWebView *uiWebView = (UIWebView*)self.webView;
-        [uiWebView stringByEvaluatingJavaScriptFromString:jsStatement];
-    } else {
-        if (self.webViewEngine) {
-            [self.webViewEngine evaluateJavaScript:jsStatement completionHandler:nil];
-        } else {
-            NSLog(@"webViewEngine is null");
-        }
-    } */
-    
-
 }
 
 - (NSString *) regionHashMapKeyWithUUID: (NSString *)uuid andMajor: (NSNumber *)major andMinor: (NSNumber *)minor {
@@ -407,19 +412,20 @@
     return [NSString stringWithFormat:@"%@:%@:%@",uuid, major, minor];
 }
 
+
 /**
  * Create a dictionary object from a region.
  */
 - (NSDictionary*) regionToDictionary:(CLBeaconRegion*)region
 {
-	NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:4];
-
-	[dict setValue:region.proximityUUID.UUIDString forKey:@"uuid"];
-	[dict setValue:region.identifier forKey:@"identifier"];
-	[dict setValue:region.major forKey:@"major"];
-	[dict setValue:region.minor forKey:@"minor"];
-
-	return dict;
+    NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:4];
+    
+    [dict setValue:region.proximityUUID.UUIDString forKey:@"uuid"];
+    [dict setValue:region.identifier forKey:@"identifier"];
+    [dict setValue:region.major forKey:@"major"];
+    [dict setValue:region.minor forKey:@"minor"];
+    
+    return dict;
 }
 
 /**
@@ -427,133 +433,50 @@
  */
 - (NSString*) regionDictionaryKey:(CLBeaconRegion*)region
 {
-	NSString* uuid = region.proximityUUID.UUIDString;
-	int major = nil != region.major ? [region.major intValue] : 0;
-	int minor = nil != region.minor ? [region.minor intValue] : 0;
-
-	return [NSString stringWithFormat: @"%@-%i-%i", uuid, major, minor];
+    NSString* uuid = region.proximityUUID.UUIDString;
+    int major = nil != region.major ? [region.major intValue] : 0;
+    int minor = nil != region.minor ? [region.minor intValue] : 0;
+    
+    return [NSString stringWithFormat: @"%@-%i-%i", uuid, major, minor];
 }
 
-/**
- * Create a dictionary from a CLBeacon object (used to
- * pass beacon data back to JavaScript).
- */
-- (NSDictionary*) coreLocationBeaconToDictionary:(CLBeacon*)beacon
-{
-	/////////////////////////////////////////////////////
-	// Get beacon color. Fetch color async if not set. //
-	/////////////////////////////////////////////////////
-
-	// Create key for color dictionary.
-	NSString* beaconKey = [NSString stringWithFormat: @"%@:%@:%@",
-		beacon.proximityUUID.UUIDString,
-		beacon.major,
-		beacon.minor];
-
-	// We store colors in this dictionary.
-	NSNumber* beaconColor = self.beaconColors[beaconKey];
-
-	// Check if color is set.
-	if (nil == beaconColor)
-	{
-		// Color is not set. Set color to unknown to begin with.
-		self.beaconColors[beaconKey] = [NSNumber numberWithInt: ESTColorUnknown];
-
-		// Fetch color from cloud.
-		[self.cloudManager
-			fetchColorForBeacon:beacon
-			completion:^(NSObject *value, NSError *error)
-			{
-				// TODO: Check error? Where are errors documented?
-				// Any threading problems setting color value async?
-				self.beaconColors[beaconKey] = value;
-			}];
-	}
-
-	//////////////////////////////////////////////
-	// Store beacon properties in a dictionary. //
-	//////////////////////////////////////////////
-
-	NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:8];
-
-	[dict setValue:beacon.proximityUUID.UUIDString forKey:@"proximityUUID"];
-	[dict setValue:beacon.major forKey:@"major"];
-	[dict setValue:beacon.minor forKey:@"minor"];
-	[dict setValue:[NSNumber numberWithInteger:beacon.rssi] forKey:@"rssi"];
-	[dict setValue:[NSNumber numberWithInt:beacon.proximity] forKey:@"proximity"];
-	[dict setValue:[NSNumber numberWithDouble:beacon.accuracy] forKey:@"distance"];
-	[dict setValue:beaconColor forKey:@"color"];
-
-	return dict;
+// Helper to re-write the beacon data on plist file
+- (void) writeToPlistDictionary: (NSMutableDictionary *) beaconData {
+    NSString *path = [EstimoteBeacons getBeaconsPlistPath];
+    [beaconData writeToFile:path atomically:YES];
 }
 
-/**
- * Create a dictionary from an ESTBluetoothBeacon object (used to
- * pass beacon data back to JavaScript).
- */
-- (NSDictionary*) bluetoothBeaconToDictionary:(ESTBluetoothBeacon*)beacon
-{
-	NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:8];
-		[dict setValue:beacon.major forKey:@"major"];
-	[dict setValue:beacon.minor forKey:@"minor"];
-	[dict setValue:[NSNumber numberWithInteger:beacon.rssi] forKey:@"rssi"];
-	[dict setValue:beacon.macAddress forKey:@"macAddress"];
-	[dict setValue:beacon.measuredPower forKey:@"measuredPower"];
-	[dict setValue:[NSNumber numberWithInteger:beacon.firmwareState] forKey:@"firmwareState"];
-
-	// Properties available on ESTBluetoothBeacon but not used.
-	//@property (nonatomic, strong) CBPeripheral *peripheral;
-	//@property (nonatomic, strong) NSDate *discoveryDate;
-	//@property (nonatomic, strong) NSData *advertisementData;
-
-	// TODO: How to find beacon color during Bluetooth scan?
-	//[dict setValue:[NSNumber numberWithInteger:beacon.color] forKey:@"color"];
-
-	// TODO: Is it possible to find UUID and proximity/distance with new API?
-	//[dict setValue:beacon.proximityUUID.UUIDString forKey:@"proximityUUID"];
-	//[dict setValue:beacon.distance forKey:@"distance"];
-	//[dict setValue:[NSNumber numberWithInt:beacon.proximity] forKey:@"proximity"];
-
-	return dict;
++ (NSDateFormatter *)getRegionDateFormatter {
+    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+    return formatter;
 }
 
-/**
- * Create a dictionary object with ESTBluetoothBeacon beacons.
- */
-- (NSDictionary*) dictionaryWithBluetoothBeacons:(NSArray*)beacons
-{
-	// Convert beacons to a an array of property-value objects.
-	NSMutableArray* beaconArray = [NSMutableArray array];
-	for (ESTBluetoothBeacon* beacon in beacons)
-	{
-		[beaconArray addObject:[self bluetoothBeaconToDictionary:beacon]];
-	}
-
-	return @{
-		@"beacons" : beaconArray
-		};
+- (BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (NSInteger) idle {
+    NSDate *now =[NSDate date];
+    NSDateFormatter * formatter = [EstimoteBeacons getRegionDateFormatter];
+    NSString *strLastNotification = lastNotificationDate;
+    NSDate *lastNotification = [formatter dateFromString:strLastNotification];
+    
+    NSInteger mins = 0;
+    if(lastNotification != nil)
+    {
+        NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
+        long seconds = lroundf(distanceBetweenDates);
+        mins = (seconds % 3600) / 60;
+    }
+    else{mins = 9999999;}
+    
+    NSInteger verify = idle;
+    
+    if(mins >= verify || verify == 0)
+    {
+        return YES;
+    }
+    
+    return NO;
 }
 
-/**
- * Create a dictionary object with a CLBeaconRegion and CLBeacon beacons.
- */
-- (NSDictionary*) dictionaryWithRegion:(CLBeaconRegion*)region
-	andBeacons:(NSArray*)beacons
-{
-	// Convert beacons to a an array of property-value objects.
-	NSMutableArray* beaconArray = [NSMutableArray array];
-	for (CLBeacon* beacon in beacons)
-	{
-		[beaconArray addObject:[self coreLocationBeaconToDictionary:beacon]];
-	}
-
-	NSDictionary* regionDictionary = [self regionToDictionary:region];
-
-	return @{
-			 @"region" : regionDictionary,
-			 @"beacons" : beaconArray
-			 };
-}
 
 #pragma mark - CoreBluetooth discovery
 
@@ -567,282 +490,20 @@
 }
 
 - (void) deviceReady:(CDVInvokedUrlCommand*) command {
-    NSLog(@"device ready.....");
-    
     BeaconsManager *beaconsManager = [BeaconsManager sharedManager];
     NSMutableArray *noti = beaconsManager.notifications;
-    
     for (id localNotificationItem in noti) {
         UILocalNotification *localNotification = localNotificationItem;
-        
         NSDictionary *userInfo = localNotification.userInfo;
-        NSLog(@"Notifications...... %@", localNotification.userInfo);
         [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
-        
         //Remove notification dispatched
         [beaconsManager removeNotification:localNotification];
     }
-}
-
-/**
- * Start CoreBluetooth discovery.
- */
-- (void) beacons_startEstimoteBeaconDiscovery:(CDVInvokedUrlCommand*)command
-{
-	//NSLog(@"OBJC startEstimoteBeaconDiscovery");
-
-	// Stop any ongoing discovery.
-	[self helper_stopEstimoteBeaconDiscovery];
-
-	// Save callback id.
-	self.callbackId_beaconsDiscovery = command.callbackId;
-
-	// Start discovery.
-	[self.utilityManager startEstimoteBeaconDiscovery];
-}
-
-/**
- * Stop CoreBluetooth discovery.
- */
-- (void) beacons_stopEstimoteBeaconDiscovery:(CDVInvokedUrlCommand*)command
-{
-	// Stop discovery.
-	[self helper_stopEstimoteBeaconDiscovery];
-
-	// Respond to JavaScript with OK if a Cordova command object was passed.
-	if (nil != command)
-	{
-		[self.commandDelegate
-			sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
-			callbackId:command.callbackId];
-	}
-}
-
-- (void) helper_stopEstimoteBeaconDiscovery
-{
-	// Stop existing discovery/ranging.
-	[self.utilityManager stopEstimoteBeaconDiscovery];
-
-	// Clear any existing callback.
-	if (self.callbackId_beaconsDiscovery)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus:CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool:NO];
-		[self.commandDelegate
-			sendPluginResult:result
-			callbackId:self.callbackId_beaconsDiscovery];
-
-		// Clear callback id.
-		self.callbackId_beaconsDiscovery = nil;
-	}
-}
-
-/**
- * CoreBluetooth discovery event.
- */
-- (void) utilityManager:(ESTUtilityManager*)manager
-	 didDiscoverBeacons:(NSArray*)beacons
-{
-	if ([beacons count] > 0
-		&& nil != self.callbackId_beaconsDiscovery)
-	{
-		// Create dictionary with result.
-		NSDictionary* resultDictionary = [self dictionaryWithBluetoothBeacons:beacons];
-
-		// Pass result to JavaScript callback.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus:CDVCommandStatus_OK
-			messageAsDictionary:resultDictionary];
-		[result setKeepCallbackAsBool: YES];
-		[self.commandDelegate
-			sendPluginResult:result
-			callbackId:self.callbackId_beaconsDiscovery];
-	}
-}
-
-/**
- * CoreBluetooth discovery error event.
- */
-- (void)utilityManagerDidFailDiscovery:(ESTUtilityManager*)manager
-{
-	// Pass error to JavaScript.
-	if (self.callbackId_beaconsDiscovery != nil)
-	{
-		[self.commandDelegate
-			sendPluginResult:[CDVPluginResult
-				resultWithStatus:CDVCommandStatus_ERROR
-				messageAsString:@"didFailDiscoveryInRegion"]
-			callbackId:self.callbackId_beaconsDiscovery];
-	}
-}
-
-#pragma mark - CoreLocation ranging
-
-/**
- * Start CoreLocation ranging.
- */
-- (void) beacons_startRangingBeaconsInRegion:(CDVInvokedUrlCommand*)command
-{
-	[self
-		beacons_impl_startRangingBeaconsInRegion:command
-		manager:self.beaconManager];
-}
-
-/**
- * Stop CoreLocation ranging.
- */
-- (void) beacons_stopRangingBeaconsInRegion:(CDVInvokedUrlCommand*)command
-{
-
-	[self
-		beacons_impl_stopRangingBeaconsInRegion:command
-		manager:self.beaconManager];
-}
-
-/**
- * Start secure CoreLocation ranging.
- */
-- (void) beacons_startRangingSecureBeaconsInRegion:(CDVInvokedUrlCommand*)command
-{
-	[self
-		beacons_impl_startRangingBeaconsInRegion:command
-		manager:self.secureBeaconManager];
-}
-
-/**
- * Stop secure CoreLocation ranging.
- */
-- (void) beacons_stopRangingSecureBeaconsInRegion:(CDVInvokedUrlCommand*)command
-{
-	[self
-		beacons_impl_stopRangingBeaconsInRegion:command
-		manager:self.secureBeaconManager];
-}
-
-/**
- * Start CoreLocation ranging.
- */
-- (void) beacons_impl_startRangingBeaconsInRegion:(CDVInvokedUrlCommand*)command
-	manager:(id)aManager
-{
-	//NSLog(@"OBJC startRangingBeaconsInRegion");
-
-	// Get region dictionary passed from JavaScript and
-	// create a beacon region object.
-	NSDictionary* regionDictionary = [command argumentAtIndex:0];
-	CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary];
-
-	// Stop any ongoing ranging for the given region.
-	[self helper_stopRangingBeaconsInRegion:region manager:aManager];
-
-	// Save callback id for the region.
-	[self.callbackIds_beaconsRanging
-		setObject:command.callbackId
-		forKey:[self regionDictionaryKey:region]];
-
-	// Start ranging.
-	[aManager startRangingBeaconsInRegion:region];
-}
-
-/**
- * Stop CoreLocation ranging.
- */
-- (void) beacons_impl_stopRangingBeaconsInRegion:(CDVInvokedUrlCommand*)command
-	manager:(id)aManager
-{
-	// Get region dictionary passed from JavaScript and
-	// create a beacon region object.
-	NSDictionary* regionDictionary = [command argumentAtIndex:0];
-	CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary];
-
-	// Stop ranging.
-	[self helper_stopRangingBeaconsInRegion:region manager:aManager];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
-		callbackId:command.callbackId];
-}
-
-- (void) helper_stopRangingBeaconsInRegion:(CLBeaconRegion*)region
-	manager:(id)aManager
-{
-	// Stop ranging the region.
-	[aManager stopRangingBeaconsInRegion:region];
-
-	// Clear any existing callback.
-	NSString* callbackId = [self.callbackIds_beaconsRanging
-		objectForKey:[self regionDictionaryKey:region]];
-	if (nil != callbackId)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus:CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool:NO];
-		[self.commandDelegate
-			sendPluginResult:result
-			callbackId:callbackId];
-
-		// Clear callback id.
-		[self.callbackIds_beaconsRanging
-			removeObjectForKey:[self regionDictionaryKey:region]];
-	}
-}
-
-/**
- * CoreLocation ranging event.
- */
-- (void) beaconManager:(id)manager
-	didRangeBeacons:(NSArray*)beacons
-	inRegion:(CLBeaconRegion*)region
-{
-	if ([beacons count] > 0)
-	{
-		NSString* callbackId = [self.callbackIds_beaconsRanging
-			objectForKey:[self regionDictionaryKey:region]];
-		if (nil != callbackId)
-		{
-			// Create dictionary with result.
-			NSDictionary* resultDictionary = [self
-				dictionaryWithRegion:region
-				andBeacons:beacons];
-
-			// Pass result to JavaScript callback.
-			CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus:CDVCommandStatus_OK
-				messageAsDictionary:resultDictionary];
-			[result setKeepCallbackAsBool: YES];
-			[self.commandDelegate
-				sendPluginResult:result
-				callbackId:callbackId];
-		}
-	}
-}
-
-/**
- * CoreLocation ranging error event.
- */
-- (void) beaconManager:(id)manager
-	rangingBeaconsDidFailForRegion:(CLBeaconRegion*)region
-	withError:(NSError*)error
-{
-	// Send error message before callback is cleared.
-	NSString* callbackId = [self.callbackIds_beaconsRanging
-		objectForKey:[self regionDictionaryKey:region]];
-	if (nil != callbackId)
-	{
-		// Pass error to JavaScript.
-		[self.commandDelegate
-			sendPluginResult:[CDVPluginResult
-				resultWithStatus:CDVCommandStatus_ERROR
-				messageAsString: error.localizedDescription]
-			callbackId: callbackId];
-	}
-
-	// Stop ranging and clear callback.
-	[self helper_stopRangingBeaconsInRegion:region manager:manager];
+    
+    self.isDeviceReady = YES;
+    
+    CDVPluginResult* pr = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult: pr callbackId: command.callbackId];
 }
 
 #pragma mark - CoreLocation monitoring
@@ -852,9 +513,10 @@
  */
 - (void) beacons_startMonitoringForRegion:(CDVInvokedUrlCommand*)command
 {
-	[self
-		beacons_impl_startMonitoringForRegion:command
-		manager:self.beaconManager];
+    [self.commandDelegate runInBackground:^{
+        [self beacons_impl_startMonitoringForRegion:command
+                                            manager:self.beaconManager];
+    }];
 }
 
 /**
@@ -862,314 +524,217 @@
  */
 - (void) beacons_stopMonitoringForRegion:(CDVInvokedUrlCommand*)command
 {
-	[self
-		beacons_impl_stopMonitoringForRegion:command
-		manager:self.beaconManager];
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    NSFileManager *Manager = [NSFileManager defaultManager];
-     [Manager removeItemAtPath: path error:NULL];
-}
-/**
- * Start secure CoreLocation monitoring.
- */
-- (void) beacons_startSecureMonitoringForRegion:(CDVInvokedUrlCommand*)command
-{
-	[self
-		beacons_impl_startMonitoringForRegion:command
-		manager:self.secureBeaconManager];
-}
-
-/**
- * Stop secure CoreLocation monitoring.
- */
-- (void) beacons_stopSecureMonitoringForRegion:(CDVInvokedUrlCommand*)command
-{
-	[self
-		beacons_impl_stopMonitoringForRegion:command
-		manager:self.secureBeaconManager];
+    [self.commandDelegate runInBackground:^{
+        [self beacons_impl_stopMonitoringForRegion:command
+                                           manager:self.beaconManager];
+    }];
+    
 }
 
 /**
  * Start CoreLocation monitoring.
  */
 - (void) beacons_impl_startMonitoringForRegion:(CDVInvokedUrlCommand*)command
-	manager:(id)aManager
+                                       manager:(id)aManager
 {
-	//NSLog(@"OBJC startMonitoringForRegion");
-
-	// Get region dictionary passed from JavaScript and
-	// create a beacon region object.
-	NSDictionary* regionDictionary = [command argumentAtIndex:0];
-	CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary];
-
-	// Set region notification when display is activated.
-	region.notifyEntryStateOnDisplay = (BOOL)[command argumentAtIndex:1];
-
-	// Stop any ongoing monitoring for the given region.
-	[self helper_stopMonitoringForRegion:region manager:aManager];
-
-	// Save callback id for the region.
-	[self.callbackIds_beaconsMonitoring
-		setObject:command.callbackId
-		forKey:[self regionDictionaryKey:region]];
-
-	// Start monitoring.
-	[aManager startMonitoringForRegion:region];
+    // Get region dictionary passed from JavaScript and
+    // create a beacon region object.
+    NSDictionary* regionDictionary = [command argumentAtIndex:0];
+    CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary andSave:YES];
+    
+    // Set region notification when display is activated.
+    region.notifyEntryStateOnDisplay = (BOOL)[command argumentAtIndex:1];
+    
+    // Stop any ongoing monitoring for the given region.
+    [self helper_stopMonitoringForRegion:region manager:aManager];
+    
+    // Save callback id for the region.
+    [self.callbackIds_beaconsMonitoring setObject: command.callbackId
+                                           forKey: [self regionDictionaryKey:region]];
+    
+    // Start monitoring.
+    [aManager startMonitoringForRegion:region];
     
     CDVPluginResult* result = [CDVPluginResult
                                resultWithStatus:CDVCommandStatus_OK
                                messageAsDictionary:regionDictionary];
-   // [result setKeepCallback:[NSNumber numberWithBool:YES]];
+    // [result setKeepCallback:[NSNumber numberWithBool:YES]];
     [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
     
-	// This will get the initial state faster.
-	//[aManager requestStateForRegion:region];
+    // This will get the initial state faster.
+    //[aManager requestStateForRegion:region];
 }
 
 /**
  * Stop CoreLocation monitoring.
  */
 - (void) beacons_impl_stopMonitoringForRegion:(CDVInvokedUrlCommand*)command
-	manager:(id)aManager
+                                      manager:(id)aManager
 {
-	// Get region dictionary passed from JavaScript and
-	// create a beacon region object.
-	NSDictionary* regionDictionary = [command argumentAtIndex:0];
-	CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary];
-
-	// Stop monitoring.
-	[self helper_stopMonitoringForRegion:region manager:aManager];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
-		callbackId:command.callbackId];
+    // Get region dictionary passed from JavaScript and
+    // create a beacon region object.
+    NSDictionary* regionDictionary = [command argumentAtIndex:0];
+    CLBeaconRegion* region = [self createRegionFromDictionary:regionDictionary andSave:NO];
+    
+    // Stop monitoring.
+    [self helper_stopMonitoringForRegion:region manager:aManager];
+    
+    // Respond to JavaScript with OK.
+    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
+                                callbackId:command.callbackId];
 }
 
 - (void) helper_stopMonitoringForRegion:(CLBeaconRegion*)region
-	manager:(id)aManager
+                                manager:(id)aManager
 {
-	// Stop monitoring the region.
-	[aManager stopMonitoringForRegion:region];
+    // Stop monitoring the region.
+    for (CLRegion* registeredRegion in [aManager monitoredRegions]) {
+        if([registeredRegion.identifier isEqual:region.identifier]) {
+            [aManager stopMonitoringForRegion:registeredRegion];
+        }
+    }
+    
+    // Clear any existing callback.
+    NSString* callbackId = [self.callbackIds_beaconsMonitoring
+                            objectForKey:[self regionDictionaryKey:region]];
+    if (nil != callbackId)
+    {
+        // Clear callback on the JS side.
+        CDVPluginResult* result = [CDVPluginResult
+                                   resultWithStatus:CDVCommandStatus_NO_RESULT];
+        [result setKeepCallbackAsBool:NO];
+        [self.commandDelegate
+         sendPluginResult:result
+         callbackId:callbackId];
+        
+        // Clear callback id.
+        [self.callbackIds_beaconsMonitoring removeObjectForKey: [self regionDictionaryKey:region]];
+    }
+}
 
-	// Clear any existing callback.
-	NSString* callbackId = [self.callbackIds_beaconsMonitoring
-		objectForKey:[self regionDictionaryKey:region]];
-	if (nil != callbackId)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus:CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool:NO];
-		[self.commandDelegate
-			sendPluginResult:result
-			callbackId:callbackId];
-
-		// Clear callback id.
-		[self.callbackIds_beaconsMonitoring
-			removeObjectForKey:[self regionDictionaryKey:region]];
-	}
+- (void) beaconManager:(id)manager didStartMonitoringForRegion:(CLBeaconRegion *)region
+{
+    // Not used.
 }
 
 - (void) beaconManager:(id)manager
-	didStartMonitoringForRegion:(CLBeaconRegion *)region
-{
-	// Not used.
-}
--(NSMutableDictionary*) getPlistData
-{
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-    
-    return myDictionary;
-}
-
-// Helper to re-write the beacon data on plist file
--(void) writeToPlistDictionarity: (NSMutableDictionary *) beaconData {
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString *documentsDirectory = [paths objectAtIndex:0];
-    NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-    [beaconData writeToFile:path atomically:YES];
-}
-
--(BOOL) validateIdleTimeWithLastNotificationDate: (NSString *) lastNotificationDate andIdleValue: (int) idle {
-    NSDate *now =[NSDate date];
-    //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-    NSString *strLastNotification = lastNotificationDate;
-    NSDate *lastNotification = [formatter dateFromString:strLastNotification];
-    
-    NSInteger mins = 0;
-    if(lastNotification != nil)
-    {
-        NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
-        long seconds = lroundf(distanceBetweenDates);
-        mins = (seconds % 3600) / 60;
-    }
-    else{mins = 9999999;}
-    
-    int verify = idle;
-    
-    if(mins >= verify || verify == 0)
-    {
-        return YES;
-    }
-    
-    return NO;
-}
-
-- (void) beaconManager:(id)manager
-	didEnterRegion:(CLBeaconRegion *)region
+        didEnterRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateActive)
     {
-        NSMutableDictionary *Beacondata = [self getPlistData];
-        NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
-        
-        NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
-        int verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
-        BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
-        
-        if(verify == 0)
-            [SelectedBeacon setValue:0 forKey:@"idle"];
-        
-        if(resultIdleValidation)
-        {
-            [SelectedBeacon setValue:@"inside" forKey:@"state"];
-            [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
-            [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-enter"];
-            
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-            NSString *dateString = [formatter stringFromDate:[NSDate date]];
-            
-            [SelectedBeacon setValue:dateString forKey:@"sentnotification"];
-            
-            [Beacondata setObject:SelectedBeacon forKey:region.identifier];
-            [self writeToPlistDictionarity:Beacondata];
-        }
+        [self handleRegionEvent:manager region:region forEventType:@"ENTER"];
     }
-	// Not used.
 }
 
 - (void) beaconManager:(id)manager
-	didExitRegion:(CLBeaconRegion *)region
+         didExitRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (state == UIApplicationStateActive)
     {
-        NSMutableDictionary *Beacondata = [self getPlistData];
-        NSMutableDictionary *SelectedBeacon = [Beacondata valueForKey:region.identifier];
-        
-        NSString *strLastNotification = [SelectedBeacon objectForKey:@"sentnotification"];
-        int verify = [[SelectedBeacon objectForKey:@"idle"] integerValue];
-        BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:verify];
-        
-        if(verify == 0)
-        [SelectedBeacon setValue:0 forKey:@"idle"];
-        
-        if(resultIdleValidation)
-        {
-            [SelectedBeacon setValue:@"outside" forKey:@"state"];
-            [SelectedBeacon setValue:@"false" forKey:@"openedFromNotification"];
-            [self dispatchPush:SelectedBeacon forStateEvent:@"beacon-monitor-exit"];
-            
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-            NSString *dateString = [formatter stringFromDate:[NSDate date]];
-            
-            [SelectedBeacon setValue:dateString forKey:@"sentnotification"];
-            
-            
-            [Beacondata setObject:SelectedBeacon forKey:region.identifier];
-            [self writeToPlistDictionarity:Beacondata];
-            
-            //[beacondata setValue:nowregister forKey:@"sentnotification"];
-            
-            
-          /*  NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-            NSString *documentsDirectory = [paths objectAtIndex:0];
-            NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-            [Beacondata writeToFile:path atomically:YES]; */
-
-        }
+        [self handleRegionEvent:manager region:region forEventType:@"EXIT"];
     }
+}
+
+- (void) handleRegionEvent: (CLLocationManager*) manager
+                    region: (CLBeaconRegion*) region
+              forEventType: (NSString*) eventType {
+    
+    NSMutableDictionary *beaconsData = [EstimoteBeacons getBeaconsPlistData];
+    NSMutableDictionary *beacon = [beaconsData valueForKey:region.identifier];
+    NSString *strLastNotification = [beacon objectForKey:@"sentnotification"];
+    NSInteger idleTime = [[beacon objectForKey:@"idle"] integerValue];
+    BOOL resultIdleValidation = [self validateIdleTimeWithLastNotificationDate:strLastNotification andIdleValue:idleTime];
+    
+    if(idleTime == 0)
+    {
+        [beacon setValue:0 forKey:@"idle"];
+    }
+    
+    if(resultIdleValidation)
+    {
+        NSString* state = [eventType isEqualToString:@"ENTER"] ? @"inside" : @"outside";
+        NSString* event = [eventType isEqualToString:@"ENTER"] ? @"beacon-monitor-enter" : @"beacon-monitor-exit";
+        
+        [beacon setValue:state forKey:@"state"];
+        [beacon setValue:@"false" forKey:@"openedFromNotification"];
+        [self dispatchPush:beacon forStateEvent:event];
+        NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+        NSString *dateString = [formatter stringFromDate:[NSDate date]];
+        [beacon setValue:dateString forKey:@"sentnotification"];
+        [beaconsData setObject:beacon forKey:region.identifier];
+        [self writeToPlistDictionary:beaconsData];
+    }
+    
 }
 
 /**
  * CoreLocation monitoring event.
  */
 - (void) beaconManager:(id)manager
-	didDetermineState:(CLRegionState)state
-	forRegion:(CLBeaconRegion*)region
+     didDetermineState:(CLRegionState)state
+             forRegion:(CLBeaconRegion*)region
 {
-	//NSLog(@"OBJC didDetermineStateforRegion");
-
-	// Send result to JavaScript.
-	NSString* callbackId = [self.callbackIds_beaconsMonitoring
-		objectForKey:[self regionDictionaryKey:region]];
-	if (nil != callbackId)
-	{
-		// Create state string.
-		NSString* stateString;
-		switch (state)
-		{
-			case CLRegionStateInside:
-				stateString = @"inside";
-				break;
-			case CLRegionStateOutside:
-				stateString = @"outside";
-				break;
-			case CLRegionStateUnknown:
-			default:
-				stateString = @"unknown";
-		}
-
-		// Create result object.
-		NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:8];
-		[dict setValue:region.proximityUUID.UUIDString forKey:@"uuid"];
-		[dict setValue:region.identifier forKey:@"identifier"];
-		[dict setValue:region.major forKey:@"major"];
-		[dict setValue:region.minor forKey:@"minor"];
-		[dict setValue:stateString forKey:@"state"];
-
-		// Send result.
-	/*	CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus:CDVCommandStatus_OK
-			messageAsDictionary:dict];
-		[result setKeepCallback:[NSNumber numberWithBool:YES]];
-		[self.commandDelegate sendPluginResult:result callbackId:callbackId]; */
-	}
+    
+    // Send result to JavaScript.
+    NSString* callbackId = [self.callbackIds_beaconsMonitoring
+                            objectForKey:[self regionDictionaryKey:region]];
+    if (nil != callbackId)
+    {
+        // Create state string.
+        NSString* stateString;
+        switch (state)
+        {
+            case CLRegionStateInside:
+                stateString = @"inside";
+                break;
+            case CLRegionStateOutside:
+                stateString = @"outside";
+                break;
+            case CLRegionStateUnknown:
+            default:
+                stateString = @"unknown";
+        }
+        
+        // Create result object.
+        NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:8];
+        [dict setValue:region.proximityUUID.UUIDString forKey:@"uuid"];
+        [dict setValue:region.identifier forKey:@"identifier"];
+        [dict setValue:region.major forKey:@"major"];
+        [dict setValue:region.minor forKey:@"minor"];
+        [dict setValue:stateString forKey:@"state"];
+        
+        // Send result.
+        /*	CDVPluginResult* result = [CDVPluginResult
+         resultWithStatus:CDVCommandStatus_OK
+         messageAsDictionary:dict];
+         [result setKeepCallback:[NSNumber numberWithBool:YES]];
+         [self.commandDelegate sendPluginResult:result callbackId:callbackId]; */
+    }
 }
 
 /**
  * CoreLocation monitoring error event.
  */
-- (void) beaconManager:(id)manager
-	monitoringDidFailForRegion:(CLBeaconRegion*)region
-	withError:(NSError*)error
+- (void) beaconManager:(id)manager monitoringDidFailForRegion:(CLBeaconRegion*)region
+             withError:(NSError*)error
 {
-	// Send error message before callback is cleared.
-	NSString* callbackId = [self.callbackIds_beaconsMonitoring
-		objectForKey:[self regionDictionaryKey:region]];
-	if (nil != callbackId)
-	{
-		// Pass error to JavaScript.
-		[self.commandDelegate
-			sendPluginResult:[CDVPluginResult
-				resultWithStatus:CDVCommandStatus_ERROR
-				messageAsString: error.localizedDescription]
-			callbackId: callbackId];
-	}
-
-	// Stop monitoring and clear callback.
-	[self helper_stopMonitoringForRegion:region manager:manager];
+    // Send error message before callback is cleared.
+    NSString* callbackId = [self.callbackIds_beaconsMonitoring
+                            objectForKey:[self regionDictionaryKey:region]];
+    if (nil != callbackId)
+    {
+        // Pass error to JavaScript.
+        [self.commandDelegate
+         sendPluginResult:[CDVPluginResult
+                           resultWithStatus:CDVCommandStatus_ERROR
+                           messageAsString: error.localizedDescription]
+         callbackId: callbackId];
+    }
+    
+    // Stop monitoring and clear callback.
+    [self helper_stopMonitoringForRegion:region manager:manager];
 }
 
 #pragma mark - CoreLocation authorization
@@ -1179,19 +744,17 @@
  */
 - (void) beacons_requestWhenInUseAuthorization:(CDVInvokedUrlCommand*)command
 {
-	//NSLog(@"OBJC requestWhenInUseAuthorization");
-
-	// Only applicable on iOS 8 and above.
-	if (IsAtLeastiOSVersion(@"8.0"))
-	{
-		[self.beaconManager requestWhenInUseAuthorization];
-	}
-
-	// Return OK to JavaScript.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult
-			resultWithStatus:CDVCommandStatus_OK]
-		callbackId:command.callbackId];
+    // Only applicable on iOS 8 and above.
+    if (IsAtLeastiOSVersion(@"8.0"))
+    {
+        [self.beaconManager requestWhenInUseAuthorization];
+    }
+    
+    // Return OK to JavaScript.
+    [self.commandDelegate
+     sendPluginResult:[CDVPluginResult
+                       resultWithStatus:CDVCommandStatus_OK]
+     callbackId:command.callbackId];
 }
 
 /**
@@ -1199,19 +762,17 @@
  */
 - (void) beacons_requestAlwaysAuthorization:(CDVInvokedUrlCommand*)command
 {
-	//NSLog(@"OBJC requestAlwaysAuthorization");
-
-	// Only applicable on iOS 8 and above.
-	if (IsAtLeastiOSVersion(@"8.0"))
-	{
-		[self.beaconManager requestAlwaysAuthorization];
-	}
-
-	// Return OK to JavaScript.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult
-			resultWithStatus:CDVCommandStatus_OK]
-		callbackId:command.callbackId];
+    // Only applicable on iOS 8 and above.
+    if (IsAtLeastiOSVersion(@"8.0"))
+    {
+        [self.beaconManager requestAlwaysAuthorization];
+    }
+    
+    // Return OK to JavaScript.
+    [self.commandDelegate
+     sendPluginResult:[CDVPluginResult
+                       resultWithStatus:CDVCommandStatus_OK]
+     callbackId:command.callbackId];
 }
 
 /**
@@ -1219,1062 +780,22 @@
  */
 - (void) beacons_authorizationStatus:(CDVInvokedUrlCommand*)command
 {
-	//NSLog(@"OBJC authorizationStatus");
-
-	// Default value.
-	// TODO: Should we use the real value also on iOS 7? Is it available?
-	CLAuthorizationStatus status = kCLAuthorizationStatusNotDetermined;
-
-	// Only available on iOS 8 and above.
-	if (IsAtLeastiOSVersion(@"8.0"))
-	{
-		status = [ESTBeaconManager authorizationStatus];
-	}
-
-	// Return status value to JavaScript.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult
-			resultWithStatus:CDVCommandStatus_OK
-			messageAsInt:status]
-		callbackId:command.callbackId];
-}
-
-#pragma mark - Config methods
-
-- (void) beacons_enableAnalytics: (CDVInvokedUrlCommand*)command
-{
-	BOOL enable = [[command argumentAtIndex: 0] boolValue];
-
-	[ESTCloudManager enableAnalytics: enable];
-
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-- (void) beacons_isAnalyticsEnabled: (CDVInvokedUrlCommand*)command
-{
-	BOOL isAnalyticsEnabled = [ESTCloudManager isAnalyticsEnabled];
-
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsBool: isAnalyticsEnabled]
-		callbackId: command.callbackId];
-}
-
-- (void) beacons_isAuthorized: (CDVInvokedUrlCommand*)command
-{
-	BOOL isAuthorized = [ESTCloudManager isAuthorized];
-
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsBool: isAuthorized]
-		callbackId: command.callbackId];
-}
-
-- (void) beacons_setupAppIDAndAppToken: (CDVInvokedUrlCommand*)command
-{
-	NSString* appID = [command argumentAtIndex: 0];
-	NSString* appToken = [command argumentAtIndex: 1];
-
-	[ESTCloudManager setupAppID: appID andAppToken: appToken];
-
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-#pragma mark - Virtual Beacon methods
-
-// A virtual beacon is an iPhone that pretends to be an iBeacon.
-
-- (void) beacons_startAdvertisingAsBeacon: (CDVInvokedUrlCommand*)command
-{
-	NSString* uuidString = [command argumentAtIndex: 0];
-	NSInteger major = [[command argumentAtIndex: 1] intValue];
-	NSInteger minor = [[command argumentAtIndex: 2] intValue];
-	NSString* regionId = [command argumentAtIndex: 3];
-	NSUUID* uuid = [[NSUUID alloc] initWithUUIDString: uuidString];
-
-	if (nil == uuid)
-	{
-		[self.commandDelegate
-			sendPluginResult: [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_ERROR
-				messageAsString: @"Invalid UUID"]
-			callbackId: command.callbackId];
-		return;
-	}
-
-	[self.beaconManager
-		startAdvertisingWithProximityUUID: uuid
-		major: major
-		minor: minor
-		identifier: regionId];
-
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-- (void) beacons_stopAdvertisingAsBeacon: (CDVInvokedUrlCommand*)command
-{
-	NSLog(@"beacons_stopAdvertisingAsBeacon");
-
-	[self.beaconManager stopAdvertising];
-
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-#pragma mark - Estimote Nearbles Implementation
-
-/*********************************************************/
-/************ Estimote Nearbles Implementation ***********/
-/*********************************************************/
-
-#pragma mark - Initialization
-
-- (void) nearables_pluginInitialize
-{
-	//NSLog(@"OBJC EstimoteNearables pluginInitialize");
-
-	// Crete Nearable manager instance.
-	self.nearableManager = [ESTNearableManager new];
-	self.nearableManager.delegate = self;
-
-	// Variables that track callbacks.
-	self.callbackIds_nearablesRangingIdentifier = [NSMutableDictionary new];
-	self.callbackIds_nearablesRangingType = [NSMutableDictionary new];
-	self.callbackIds_nearablesMonitoringIdentifier = [NSMutableDictionary new];
-	self.callbackIds_nearablesMonitoringType = [NSMutableDictionary new];
-}
-
-/**
- * From interface CDVPlugin.
- * Called when the WebView navigates or refreshes.
- */
-- (void) nearables_onReset
-{
-	// Reset callback variables.
-	self.callbackIds_nearablesRangingIdentifier = [NSMutableDictionary new];
-	self.callbackIds_nearablesRangingType = [NSMutableDictionary new];
-	self.callbackIds_nearablesMonitoringIdentifier = [NSMutableDictionary new];
-	self.callbackIds_nearablesMonitoringType = [NSMutableDictionary new];
-
-	// Stop any ongoing ranging/monitoring.
-	[self.nearableManager stopRanging];
-	[self.nearableManager stopMonitoring];
-}
-
-#pragma mark - Nearables helper methods
-
-/**
- * Create a dictionary from a Nearable object (used to
- * pass data back to JavaScript).
- */
-- (NSDictionary*) nearableToDictionary: (ESTNearable*)nearable
-{
-	NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity:32];
-
-	[dict setValue: [NSNumber numberWithInt: nearable.type]
-		forKey: @"type"];
-	[dict setValue: [ESTNearableDefinitions nameForType: nearable.type]
-		forKey: @"nameForType"];
-	[dict setValue: [NSNumber numberWithInt: nearable.type]
-		forKey: @"color"];
-	//[dict setValue: [ESTNearableDefinitions nameForColor: nearable.color]
-	//	forKey: @"nameForColor"];
-	[dict setValue: nearable.identifier
-		forKey: @"identifier"];
-	[dict setValue: nearable.hardwareVersion
-		forKey: @"hardwareVersion"];
-	[dict setValue: nearable.firmwareVersion
-		forKey: @"firmwareVersion"];
-	[dict setValue: [NSNumber numberWithInteger: nearable.rssi]
-		forKey: @"rssi"];
-	[dict setValue: [NSNumber numberWithInt: nearable.zone]
-		forKey: @"zone"];
-	[dict setValue: nearable.idleBatteryVoltage
-		forKey: @"idleBatteryVoltage"];
-	[dict setValue: nearable.stressBatteryVoltage
-		forKey: @"stressBatteryVoltage"];
-	[dict setValue: [NSNumber numberWithLongLong: nearable.currentMotionStateDuration]
-		forKey: @"currentMotionStateDuration"];
-	[dict setValue: [NSNumber numberWithLongLong: nearable.previousMotionStateDuration]
-		forKey: @"previousMotionStateDuration"];
-	[dict setValue: [NSNumber numberWithBool: nearable.isMoving]
-		forKey: @"isMoving"];
-	[dict setValue: [NSNumber numberWithInt: nearable.orientation]
-		forKey:@"orientation"];
-	[dict setValue: [NSNumber numberWithInteger: nearable.xAcceleration]
-		forKey:@"xAcceleration"];
-	[dict setValue: [NSNumber numberWithInteger: nearable.yAcceleration]
-		forKey:@"yAcceleration"];
-	[dict setValue: [NSNumber numberWithInteger: nearable.zAcceleration]
-		forKey:@"zAcceleration"];
-	[dict setValue: [NSNumber numberWithDouble: nearable.temperature]
-		forKey: @"temperature"];
-	[dict setValue: nearable.power
-		forKey:@"power"];
-	[dict setValue: [NSNumber numberWithInt: nearable.firmwareState]
-		forKey:@"firmwareState"];
-
-	return dict;
-}
-
-/**
- * Create an array of nearable dictionary objects from an array of
- * nearables (used to pass data back to JavaScript).
- */
-- (NSArray*) nearablesToArray: (NSArray*)nearables
-{
-	// Convert beacons to a an array of property-value objects.
-	NSMutableArray* array = [NSMutableArray array];
-	for (ESTNearable* nearable in nearables)
-	{
-		[array addObject: [self nearableToDictionary: nearable]];
-	}
-
-	return array;
-}
-
-#pragma mark - Nearble ranging
-
-/**
- * Start Nearble ranging for identifier.
- */
-- (void) nearables_startRangingForIdentifier: (CDVInvokedUrlCommand*)command
-{
-	//NSLog(@"OBJC startRangingForIdentifier");
-
-	// Get identifier passed from JavaScript.
-	NSString* identifier = [command argumentAtIndex: 0];
-
-	// Stop any ongoing ranging for the given identifier.
-	// Only one callback at a time may be ranging a specific identifier.
-	// Multiple callbacks cannot range the same identifer.
-	[self helper_stopRangingForIdentifier: identifier];
-
-	// Save callback id for the identifier.
-	[self.callbackIds_nearablesRangingIdentifier
-		setObject: command.callbackId
-		forKey: identifier];
-
-	// Start ranging.
-	[self.nearableManager startRangingForIdentifier: identifier];
-}
-
-/**
- * Stop Nearble ranging for identifier.
- */
-- (void) nearables_stopRangingForIdentifier: (CDVInvokedUrlCommand*)command
-{
-	// Get identifier passed from JavaScript.
-	NSString* identifier = [command argumentAtIndex: 0];
-
-	// Stop ranging.
-	[self helper_stopRangingForIdentifier: identifier];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus:CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-- (void) helper_stopRangingForIdentifier: (NSString*)identifier
-{
-	// Stop ranging the identifier.
-	[self.nearableManager stopRangingForIdentifier: identifier];
-
-	// Clear any existing callback.
-	NSString* callbackId = [self.callbackIds_nearablesRangingIdentifier
-		objectForKey: identifier];
-	if (nil != callbackId)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool: NO];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-
-		// Clear callback id.
-		[self.callbackIds_nearablesRangingIdentifier
-			removeObjectForKey: identifier];
-	}
-}
-
-/**
- * Nearable identifier ranging event.
- */
- - (void) nearableManager: (ESTNearableManager*)manager
- 	didRangeNearable: (ESTNearable *)nearable
-{
-	NSString* callbackId = [self.callbackIds_nearablesRangingIdentifier
-		objectForKey: nearable.identifier];
-	if (nil != callbackId)
-	{
-		// Create dictionary with result.
-		NSDictionary* resultDictionary = [self nearableToDictionary: nearable];
-
-		// Pass result to JavaScript callback.
-		CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_OK
-				messageAsDictionary: resultDictionary];
-		[result setKeepCallbackAsBool: YES];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-	}
-}
-
-/**
- * Start Nearable ranging for type.
- */
-- (void) nearables_startRangingForType: (CDVInvokedUrlCommand*)command
-{
-	//NSLog(@"OBJC startRangingForType");
-
-	// Get type passed from JavaScript.
-	NSNumber* type = [command argumentAtIndex: 0];
-
-	// Stop any ongoing ranging for the given type.
-	// Only one callback at a time may be ranging a specific type.
-	// Multiple callbacks cannot range the same type.
-	[self helper_stopRangingForType: type];
-
-	// Save callback id for the identifier.
-	[self.callbackIds_nearablesRangingType
-		setObject: command.callbackId
-		forKey: type];
-
-	// Start ranging.
-	[self.nearableManager startRangingForType: [type intValue]];
-}
-
-/**
- * Stop Nearable ranging for type.
- */
-- (void) nearables_stopRangingForType: (CDVInvokedUrlCommand*)command
-{
-	// Get type passed from JavaScript.
-	NSNumber* type = [command argumentAtIndex: 0];
-
-	// Stop ranging.
-	[self helper_stopRangingForType: type];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-- (void) helper_stopRangingForType: (NSNumber*)type
-{
-	// Stop ranging the type.
-	[self.nearableManager stopRangingForType: [type intValue]];
-
-	// Clear any existing callback.
-	NSString* callbackId = [self.callbackIds_nearablesRangingType
-		objectForKey: type];
-	if (nil != callbackId)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool: NO];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-
-		// Clear callback id.
-		[self.callbackIds_nearablesRangingType
-			removeObjectForKey: type];
-	}
-}
-
-/**
- * Nearable type ranging event.
- */
-- (void) nearableManager: (ESTNearableManager*) manager
-	didRangeNearables: (NSArray*)nearables
-	withType: (ESTNearableType)type
-{
-	NSString* callbackId = [self.callbackIds_nearablesRangingType
-		objectForKey: [NSNumber numberWithInt: type]];
-	if (nil != callbackId)
-	{
-		// Create dictionary with result.
-		NSArray* resultArray = [self nearablesToArray: nearables];
-
-		// Pass result to JavaScript callback.
-		CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_OK
-				messageAsArray: resultArray];
-		[result setKeepCallbackAsBool: YES];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-	}
-}
-
-/**
- * Nearable ranging error event.
- */
-- (void) nearableManager: (ESTNearableManager*)manager
-	rangingFailedWithError: (NSError*)error
-{
-	// Send error message to all ranging callbacks.
-
-	for (NSString* key in self.callbackIds_nearablesRangingIdentifier)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesRangingIdentifier objectForKey:key];
-		if (nil != callbackId)
-		{
-			// Pass error message to JavaScript.
-			[self.commandDelegate
-				sendPluginResult: [CDVPluginResult
-					resultWithStatus: CDVCommandStatus_ERROR
-					messageAsString: error.localizedDescription]
-				callbackId: callbackId];
-		}
-	}
-
-	for (NSNumber* key in self.callbackIds_nearablesRangingType)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesRangingType objectForKey:key];
-		if (nil != callbackId)
-		{
-			// Pass error message to JavaScript.
-			[self.commandDelegate
-				sendPluginResult: [CDVPluginResult
-					resultWithStatus: CDVCommandStatus_ERROR
-					messageAsString: error.localizedDescription]
-				callbackId: callbackId];
-		}
-	}
-}
-
-/**
- * Stop ranging all Nearables.
- */
-- (void) nearables_stopRanging: (CDVInvokedUrlCommand*)command
-{
-	// Stop ranging.
-	[self.nearableManager stopRanging];
-
-	// Clear all callbacks.
-
-	for (NSString* key in self.callbackIds_nearablesRangingIdentifier)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesRangingIdentifier objectForKey: key];
-		if (nil != callbackId)
-		{
-			// Clear callback on the JS side.
-			CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_NO_RESULT];
-			[result setKeepCallbackAsBool: NO];
-			[self.commandDelegate
-				sendPluginResult: result
-				callbackId: callbackId];
-		}
-	}
-
-	for (NSNumber* key in self.callbackIds_nearablesRangingType)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesRangingType objectForKey: key];
-		if (nil != callbackId)
-		{
-			// Clear callback on the JS side.
-			CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_NO_RESULT];
-			[result setKeepCallbackAsBool: NO];
-			[self.commandDelegate
-				sendPluginResult: result
-				callbackId: callbackId];
-		}
-	}
-
-	// Reset callback dictionaries.
-	self.callbackIds_nearablesRangingIdentifier = [NSMutableDictionary new];
-	self.callbackIds_nearablesRangingType = [NSMutableDictionary new];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-#pragma mark - Nearable monitoring
-
-/**
- * Start Nearble monitoring for identifier.
- */
-- (void) nearables_startMonitoringForIdentifier: (CDVInvokedUrlCommand*)command
-{
-	NSLog(@"OBJC nearables_startMonitoringForIdentifier");
-
-	// Get identifier passed from JavaScript.
-	NSString* identifier = [command argumentAtIndex: 0];
-
-	// Stop any ongoing monitoring for the given identifier.
-	// Only one callback at a time may be monitoring a specific identifier.
-	// Multiple callbacks cannot monitor the same identifer.
-	[self helper_stopMonitoringForIdentifier: identifier];
-
-	// Save callback id for the identifier.
-	[self.callbackIds_nearablesMonitoringIdentifier
-		setObject: command.callbackId
-		forKey: identifier];
-
-	// Start monitoring.
-	[self.nearableManager startMonitoringForIdentifier: identifier];
-}
-
-/**
- * Stop Nearble monitoring for identifier.
- */
-- (void) nearables_stopMonitoringForIdentifier: (CDVInvokedUrlCommand*)command
-{
-	// Get identifier passed from JavaScript.
-	NSString* identifier = [command argumentAtIndex: 0];
-
-	// Stop monitoring.
-	[self helper_stopMonitoringForIdentifier: identifier];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-- (void) helper_stopMonitoringForIdentifier: (NSString*)identifier
-{
-	// Stop monitoring the identifier.
-	[self.nearableManager stopMonitoringForIdentifier: identifier];
-
-	// Clear any existing callback.
-	NSString* callbackId = [self.callbackIds_nearablesMonitoringIdentifier
-		objectForKey: identifier];
-	if (nil != callbackId)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool: NO];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-
-		// Clear callback id.
-		[self.callbackIds_nearablesMonitoringIdentifier
-			removeObjectForKey: identifier];
-	}
-}
-
-/**
- * Nearable identifier monitoring enter event.
- */
- - (void) nearableManager: (ESTNearableManager *)manager
- 	didEnterIdentifierRegion: (NSString *)identifier
-{
-	NSString* callbackId = [self.callbackIds_nearablesMonitoringIdentifier
-		objectForKey: identifier];
-	if (nil != callbackId)
-	{
-		// Create result object.
-		NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity: 4];
-		[dict setValue: identifier forKey:@"identifier"];
-		[dict setValue: @"inside" forKey:@"state"];
-
-		// Send result.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsDictionary: dict];
-		[result setKeepCallback: [NSNumber numberWithBool: YES]];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-	}
-}
-
-/**
- * Nearable identifier monitoring exit event.
- */
-- (void) nearableManager: (ESTNearableManager *)manager
-	didExitIdentifierRegion: (NSString *)identifier
-{
-	NSString* callbackId = [self.callbackIds_nearablesMonitoringIdentifier
-		objectForKey: identifier];
-	if (nil != callbackId)
-	{
-		// Create result object.
-		NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity: 4];
-		[dict setValue: identifier forKey:@"identifier"];
-		[dict setValue: @"outside" forKey:@"state"];
-
-		// Send result.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsDictionary: dict];
-		[result setKeepCallback: [NSNumber numberWithBool: YES]];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-	}
-}
-
-/**
- * Start Nearble monitoring for type.
- */
-- (void) nearables_startMonitoringForType: (CDVInvokedUrlCommand*)command
-{
-	NSLog(@"OBJC nearables_startMonitoringForType");
-
-	// Get type passed from JavaScript.
-	NSNumber* type = [command argumentAtIndex: 0];
-
-	// Stop any ongoing monitoring for the given type.
-	// Only one callback at a time may be monitoring a specific type.
-	// Multiple callbacks cannot monitor the same type.
-	[self helper_stopMonitoringForType: type];
-
-	// Save callback id for the type.
-	[self.callbackIds_nearablesMonitoringType
-		setObject: command.callbackId
-		forKey: type];
-
-	// Start monitoring.
-	[self.nearableManager startMonitoringForType: [type intValue]];
-}
-
-/**
- * Stop Nearble monitoring for type.
- */
-- (void) nearables_stopMonitoringForType: (CDVInvokedUrlCommand*)command
-{
-	// Get type passed from JavaScript.
-	NSNumber* type = [command argumentAtIndex: 0];
-
-	// Stop monitoring.
-	[self helper_stopMonitoringForType: type];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-- (void) helper_stopMonitoringForType: (NSNumber*)type
-{
-	// Stop monitoring the type.
-	[self.nearableManager stopMonitoringForType: [type intValue]];
-
-	// Clear any existing callback.
-	NSString* callbackId = [self.callbackIds_nearablesMonitoringType
-		objectForKey: type];
-	if (nil != callbackId)
-	{
-		// Clear callback on the JS side.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_NO_RESULT];
-		[result setKeepCallbackAsBool: NO];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-
-		// Clear callback id.
-		[self.callbackIds_nearablesMonitoringType
-			removeObjectForKey: type];
-	}
-}
-
-/**
- * Nearable type monitoring enter event.
- */
- - (void) nearableManager: (ESTNearableManager *)manager
- 	didEnterTypeRegion: (ESTNearableType)type
-{
-	NSLog(@"OBJC nearableManager didEnterTypeRegion");
-
-	NSString* callbackId = [self.callbackIds_nearablesMonitoringType
-		objectForKey: [NSNumber numberWithInt: type]];
-	if (nil != callbackId)
-	{
-		// Create result object.
-		NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity: 4];
-		[dict setValue: [NSNumber numberWithInt: type] forKey:@"type"];
-		[dict setValue: @"inside" forKey:@"state"];
-
-		// Send result.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsDictionary: dict];
-		[result setKeepCallback: [NSNumber numberWithBool: YES]];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-	}
-}
-
-/**
- * Nearable type monitoring exit event.
- */
-- (void) nearableManager: (ESTNearableManager *)manager
-	didExitTypeRegion: (ESTNearableType)type
-{
-	NSLog(@"OBJC nearableManager didExitTypeRegion");
-
-	NSString* callbackId = [self.callbackIds_nearablesMonitoringType
-		objectForKey: [NSNumber numberWithInt: type]];
-	if (nil != callbackId)
-	{
-		// Create result object.
-		NSMutableDictionary* dict = [NSMutableDictionary dictionaryWithCapacity: 4];
-		[dict setValue: [NSNumber numberWithInt: type] forKey:@"type"];
-		[dict setValue: @"outside" forKey:@"state"];
-
-		// Send result.
-		CDVPluginResult* result = [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsDictionary: dict];
-		[result setKeepCallback: [NSNumber numberWithBool: YES]];
-		[self.commandDelegate
-			sendPluginResult: result
-			callbackId: callbackId];
-	}
-}
-
-- (void) nearableManager: (ESTNearableManager *)manager
-	monitoringFailedWithError:(NSError *)error
-{
-	NSLog(@"OBJC nearableManager monitoringFailedWithError: %@", error.localizedDescription);
-
-	// Send error message to all monitoring callbacks.
-
-	for (NSString* key in self.callbackIds_nearablesMonitoringIdentifier)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesMonitoringIdentifier objectForKey:key];
-		if (nil != callbackId)
-		{
-			// Pass error message to JavaScript.
-			[self.commandDelegate
-				sendPluginResult: [CDVPluginResult
-					resultWithStatus: CDVCommandStatus_ERROR
-					messageAsString: error.localizedDescription]
-				callbackId: callbackId];
-		}
-	}
-
-	for (NSNumber* key in self.callbackIds_nearablesMonitoringType)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesMonitoringType objectForKey:key];
-		if (nil != callbackId)
-		{
-			// Pass error message to JavaScript.
-			[self.commandDelegate
-				sendPluginResult: [CDVPluginResult
-					resultWithStatus: CDVCommandStatus_ERROR
-					messageAsString: error.localizedDescription]
-				callbackId: callbackId];
-		}
-	}
-}
-
-/**
- * Stop monitoring all Nearables.
- */
-- (void) nearables_stopMonitoring: (CDVInvokedUrlCommand*)command
-{
-	// Stop monitoring.
-	[self.nearableManager stopMonitoring];
-
-	// Clear all callbacks.
-
-	for (NSString* key in self.callbackIds_nearablesMonitoringIdentifier)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesMonitoringIdentifier objectForKey: key];
-		if (nil != callbackId)
-		{
-			// Clear callback on the JS side.
-			CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_NO_RESULT];
-			[result setKeepCallbackAsBool: NO];
-			[self.commandDelegate
-				sendPluginResult: result
-				callbackId: callbackId];
-		}
-	}
-
-	for (NSNumber* key in self.callbackIds_nearablesMonitoringType)
-	{
-		NSString* callbackId = [self.callbackIds_nearablesMonitoringType objectForKey: key];
-		if (nil != callbackId)
-		{
-			// Clear callback on the JS side.
-			CDVPluginResult* result = [CDVPluginResult
-				resultWithStatus: CDVCommandStatus_NO_RESULT];
-			[result setKeepCallbackAsBool: NO];
-			[self.commandDelegate
-				sendPluginResult: result
-				callbackId: callbackId];
-		}
-	}
-
-	// Reset callback dictionaries.
-	self.callbackIds_nearablesMonitoringIdentifier = [NSMutableDictionary new];
-	self.callbackIds_nearablesMonitoringType = [NSMutableDictionary new];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult:[CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-#pragma mark - Estimote Triggers Implementation
-
-/*********************************************************/
-/************ Estimote Triggers Implementation ***********/
-/*********************************************************/
-
-// **************** Initialise/release ****************
-
-- (void) triggers_pluginInitialize
-{
-	self.triggerManager = [ESTTriggerManager new];
-	self.triggerManager.delegate = self;
-
-	self.triggers = [NSMutableDictionary new];
-}
-
-- (void) triggers_onReset
-{
-	for (NSString* key in self.triggers)
-	{
-		ESTCDVTrigger* trigger = self.triggers[key];
-		if (nil != trigger)
-		{
-			[self.triggerManager stopMonitoringForTriggerWithIdentifier:
-				trigger.triggerIdentifier];
-		}
-	}
-
-	self.triggers = [NSMutableDictionary new];
-}
-
-// Helper method.
-- (void) sendTriggerEventToJavaScript: (NSDictionary*) event
-{
-	// Trigger object holds callback id.
-	ESTCDVTrigger* trigger = [self.triggers objectForKey: event[@"triggerIdentifier"]];
-
-	// Send result.
-	CDVPluginResult* result = [CDVPluginResult
-		resultWithStatus: CDVCommandStatus_OK
-		messageAsDictionary: event];
-	[result setKeepCallback: [NSNumber numberWithBool: YES]];
-	[self.commandDelegate
-		sendPluginResult: result
-		callbackId: trigger.callbackId];
-}
-
-// **************** JavaScript API implementation ****************
-
-/**
- * Start monitoring for a trigger. Create rule objects and set up
- * callback to JavaScript for monitoring updates and trigger events.
- */
-- (void) triggers_startMonitoringForTrigger: (CDVInvokedUrlCommand*)command
-{
-	NSLog(@"OBJC triggers_startMonitoringForTrigger");
-
-	// Get command parameters.
-	NSDictionary* jsTrigger = [command argumentAtIndex: 0];
-	NSString* triggerIdentifier = jsTrigger[@"triggerIdentifier"];
-	NSArray* jsRules = jsTrigger[@"rules"];
-
-	// Trigger must NOT exist.
-	if (nil != self.triggers[triggerIdentifier])
-	{
-		// Pass error to JavaScript.
-		[self.commandDelegate
-			sendPluginResult:[CDVPluginResult
-				resultWithStatus:CDVCommandStatus_ERROR
-				messageAsString: @"Trigger already exists"]
-			callbackId: command.callbackId];
-
-		// Abort.
-		return;
-	}
-
-	// Create custom trigger holder object. It is stored
-	// in the triggers dictionary.
-	ESTCDVTrigger* trigger = [ESTCDVTrigger new];
-	trigger.triggerIdentifier = triggerIdentifier;
-	trigger.callbackId = command.callbackId;
-	[self.triggers setValue: trigger forKey: triggerIdentifier];
-
-	// Create native rules for all JavaScript rules.
-	NSMutableArray* nativeRules = [NSMutableArray array];
-	for (NSDictionary* jsRule in jsRules)
-	{
-		int ruleType = [jsRule[@"ruleType"] intValue];
-		NSString* ruleIdentifier = jsRule[@"ruleIdentifier"];
-
-		// Create rule objects based on rule type.
-		if (ruleType == EST_CDV_RULE_TYPE_GENERIC)
-		{
-			ESTCDVRuleGeneric* rule = [ESTCDVRuleGeneric new];
-			rule.triggerIdentifier = triggerIdentifier;
-			rule.ruleIdentifier = ruleIdentifier;
-			rule.pluginManager = self;
-			[trigger.nativeRules setValue: rule forKey: ruleIdentifier];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_GENERIC");
-		}
-		else if (ruleType == EST_CDV_RULE_TYPE_NEARABLE_IDENTIFIER)
-		{
-			ESTCDVRuleNearable* rule = [[ESTCDVRuleNearable alloc]
-				initWithNearableIdentifier: jsRule[@"nearableIdentifier"]];
-			rule.triggerIdentifier = triggerIdentifier;
-			rule.ruleIdentifier = ruleIdentifier;
-			rule.pluginManager = self;
-			[trigger.nativeRules setValue: rule forKey: ruleIdentifier];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_NEARABLE_IDENTIFIER");
-		}
-		else if (ruleType == EST_CDV_RULE_TYPE_NEARABLE_TYPE)
-		{
-			ESTCDVRuleNearable* rule = [[ESTCDVRuleNearable alloc]
-				initWithNearableType: [jsRule[@"nearableType"] intValue]];
-			rule.triggerIdentifier = triggerIdentifier;
-			rule.ruleIdentifier = ruleIdentifier;
-			rule.pluginManager = self;
-			[trigger.nativeRules setValue: rule forKey: ruleIdentifier];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_NEARABLE_TYPE");
-		}
-		else if (ruleType == EST_CDV_RULE_TYPE_IN_RANGE_OF_NEARABLE_IDENTIFIER)
-		{
-			ESTProximityRule* rule = [ESTProximityRule
-				inRangeOfNearableIdentifier: jsRule[@"nearableIdentifier"]];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_IN_RANGE_OF_NEARABLE_IDENTIFIER");
-		}
-		else if (ruleType == EST_CDV_RULE_TYPE_IN_RANGE_OF_NEARABLE_TYPE)
-		{
-			ESTProximityRule* rule = [ESTProximityRule
-				inRangeOfNearableType: [jsRule[@"nearableType"] intValue]];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_IN_RANGE_OF_NEARABLE_TYPE");
-		}
-		else if (ruleType == EST_CDV_RULE_TYPE_OUTSIDE_RANGE_OF_NEARABLE_IDENTIFIER)
-		{
-			ESTProximityRule* rule = [ESTProximityRule
-				outsideRangeOfNearableIdentifier: jsRule[@"nearableIdentifier"]];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_OUTSIDE_RANGE_OF_NEARABLE_IDENTIFIER");
-		}
-		else if (ruleType == EST_CDV_RULE_TYPE_OUTSIDE_RANGE_OF_NEARABLE_TYPE)
-		{
-			ESTProximityRule* rule = [ESTProximityRule
-				outsideRangeOfNearableType: [jsRule[@"nearableType"] intValue]];
-			[nativeRules addObject: rule];
-			NSLog(@"Adding EST_CDV_RULE_TYPE_OUTSIDE_RANGE_OF_NEARABLE_TYPE");
-		}
-	}
-
-	// Create native trigger with the rules.
-	trigger.nativeTrigger = [[ESTTrigger alloc]
-		initWithRules: nativeRules
-		identifier: triggerIdentifier];
-
-	// Start monitoring.
-	[self.triggerManager startMonitoringForTrigger: trigger.nativeTrigger];
-}
-
-/**
- * Stop monitoring for a trigger. Destroy rule objects.
- */
-- (void) triggers_stopMonitoringForTrigger: (CDVInvokedUrlCommand*)command
-{
-	NSLog(@"OBJC triggers_stopMonitoringForTrigger");
-
-	// Get trigger identifier.
-	NSString* triggerIdentifier = [command argumentAtIndex: 0];
-
-	// Trigger must exist.
-	ESTCDVTrigger* trigger = self.triggers[triggerIdentifier];
-	if (nil == trigger)
-	{
-		// Pass error to JavaScript.
-		[self.commandDelegate
-			sendPluginResult:[CDVPluginResult
-				resultWithStatus:CDVCommandStatus_ERROR
-				messageAsString: @"Trigger does not exist"]
-			callbackId: command.callbackId];
-
-		// Abort.
-		return;
-	}
-
-	// Stop trigger.
-	[self.triggerManager stopMonitoringForTriggerWithIdentifier: triggerIdentifier];
-
-	// Clear JavaScript trigger callback.
-	CDVPluginResult* result = [CDVPluginResult
-		resultWithStatus: CDVCommandStatus_NO_RESULT];
-	[result setKeepCallbackAsBool: NO];
-	[self.commandDelegate
-		sendPluginResult: result
-		callbackId: trigger.callbackId];
-
-	// TODO: Clean up!
-	[self.triggers removeObjectForKey: triggerIdentifier];
-
-	// Respond to JavaScript with OK.
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult resultWithStatus: CDVCommandStatus_OK]
-		callbackId: command.callbackId];
-}
-
-/**
- * Update state for a rule. This command does not return
- * anything to JavaScript. It is called by JavaScript library
- * code, not by application code.
- */
-- (void) triggers_updateRuleState: (CDVInvokedUrlCommand*)command
-{
-	NSLog(@"OBJC triggers_updateRuleState");
-
-	// Get command parameters.
-	NSString* triggerIdentifier = [command argumentAtIndex: 0];
-	NSString* ruleIdentifier = [command argumentAtIndex: 1];
-	BOOL state = [[command argumentAtIndex: 2] boolValue];
-
-	// Get rule and set state.
-	ESTCDVTrigger* trigger = self.triggers[triggerIdentifier];
-	ESTRule* rule = trigger.nativeRules[ruleIdentifier];
-	rule.state = state;
-}
-
-- (void) triggerManager: (ESTTriggerManager*)manager
-	triggerChangedState: (ESTTrigger*)trigger
-{
-	NSLog(@"triggerManager:triggerChangedState:");
-
-	NSMutableDictionary* event = [NSMutableDictionary dictionaryWithCapacity: 8];
-
-	[event setValue: @"triggerChangedState" forKey: @"eventType"];
-	[event setValue: trigger.identifier forKey: @"triggerIdentifier"];
-	[event setValue: [NSNumber numberWithBool: trigger.state] forKey: @"triggerState"];
-
-	[self sendTriggerEventToJavaScript: event];
+    // Default value.
+    // TODO: Should we use the real value also on iOS 7? Is it available?
+    CLAuthorizationStatus status = kCLAuthorizationStatusNotDetermined;
+    
+    // Only available on iOS 8 and above.
+    if (IsAtLeastiOSVersion(@"8.0"))
+    {
+        status = [ESTBeaconManager authorizationStatus];
+    }
+    
+    // Return status value to JavaScript.
+    [self.commandDelegate
+     sendPluginResult:[CDVPluginResult
+                       resultWithStatus:CDVCommandStatus_OK
+                       messageAsInt:status]
+     callbackId:command.callbackId];
 }
 
 #pragma mark - Bluetooth State Implementation
@@ -2288,103 +809,43 @@
  */
 - (void) bluetooth_bluetoothState: (CDVInvokedUrlCommand*)command
 {
-	// Return value to JavaScript.
-	[self.commandDelegate
-		sendPluginResult: [CDVPluginResult
-			resultWithStatus: CDVCommandStatus_OK
-			messageAsBool: self.bluetoothState]
-		callbackId: command.callbackId];
+    // Return value to JavaScript.
+    [self.commandDelegate
+     sendPluginResult: [CDVPluginResult
+                        resultWithStatus: CDVCommandStatus_OK
+                        messageAsBool: self.bluetoothState]
+     callbackId: command.callbackId];
 }
 
 - (void) bluetooth_pluginInitialize
 {
-	// Create CoreBluetooth manager.
-	self.bluetoothManager = [[CBCentralManager alloc]
-		initWithDelegate: self
-		queue: dispatch_get_main_queue()
-		options: @{CBCentralManagerOptionShowPowerAlertKey: @(NO)}];
-
-	// This sets the initial state.
-	[self centralManagerDidUpdateState: self.bluetoothManager];
+    // Create CoreBluetooth manager.
+    self.bluetoothManager = [[CBCentralManager alloc]
+                             initWithDelegate: self
+                             queue: dispatch_get_main_queue()
+                             options: @{CBCentralManagerOptionShowPowerAlertKey: @(NO)}];
+    
+    // This sets the initial state.
+    [self centralManagerDidUpdateState: self.bluetoothManager];
 }
 
 - (void) bluetooth_onReset
 {
-	self.bluetoothManager = nil;
+    self.bluetoothManager = nil;
 }
 
 #pragma mark - Bluetooth on/off handler
 
-- (void)centralManagerDidUpdateState:(CBCentralManager *)central
+- (void) centralManagerDidUpdateState:(CBCentralManager *)central
 {
-	if ([central state] == CBCentralManagerStatePoweredOn)
-	{
-		self.bluetoothState = YES;
-	}
-	else
-	{
-		self.bluetoothState = NO;
-	}
+    if ([central state] == CBCentralManagerStatePoweredOn)
+    {
+        self.bluetoothState = YES;
+    }
+    else
+    {
+        self.bluetoothState = NO;
+    }
 }
 
 @end // End of implementation of class EstimoteBeacons
-
-#pragma mark - Trigger object
-
-// **************** Trigger object ****************
-
-@implementation ESTCDVTrigger
-
-- init
-{
-	self = [super init];
-	self.nativeRules = [NSMutableDictionary new];
-	return self;
-}
-
-@end
-
-// **************** Generic rule ****************
-
-@implementation ESTCDVRuleGeneric
-
-- (void) update
-{
-	NSLog(@"ESTCDVRuleGeneric update");
-
-	[super update];
-
-	NSMutableDictionary* event = [NSMutableDictionary dictionaryWithCapacity: 8];
-
-	[event setValue: @"update" forKey: @"eventType"];
-	[event setValue: self.ruleIdentifier forKey: @"ruleIdentifier"];
-	[event setValue: self.triggerIdentifier forKey: @"triggerIdentifier"];
-
-	[self.pluginManager sendTriggerEventToJavaScript: event];
-}
-
-@end
-
-// **************** Nearable rule ****************
-
-@implementation ESTCDVRuleNearable
-
-- (void) updateWithNearable: (ESTNearable*)nearable
-{
-	NSLog(@"ESTCDVRuleNearable updateWithNearable");
-
-	[super updateWithNearable: nearable];
-
-	NSMutableDictionary* event = [NSMutableDictionary dictionaryWithCapacity: 8];
-
-	[event setValue: @"update" forKey: @"eventType"];
-	[event setValue: self.ruleIdentifier forKey: @"ruleIdentifier"];
-	[event setValue: self.triggerIdentifier forKey: @"triggerIdentifier"];
-	[event
-		setValue: [self.pluginManager nearableToDictionary: nearable]
-		forKey: @"nearable"];
-
-	[self.pluginManager sendTriggerEventToJavaScript: event];
-}
-
-@end

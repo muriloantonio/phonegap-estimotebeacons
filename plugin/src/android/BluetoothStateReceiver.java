@@ -7,7 +7,7 @@ import android.content.Intent;
 import android.util.Log;
 
 /**
- * Created by jppg on 01/03/16.
+ * Created by João Gonçalves (jppg) on 01/03/16.
  */
 public class BluetoothStateReceiver extends BroadcastReceiver {
 
@@ -16,7 +16,7 @@ public class BluetoothStateReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        if(BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
+        if (BluetoothAdapter.ACTION_STATE_CHANGED.equals(action)) {
             int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1);
             switch (state) {
                 case BluetoothAdapter.STATE_ON:

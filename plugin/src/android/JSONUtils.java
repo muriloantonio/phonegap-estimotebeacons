@@ -35,6 +35,7 @@ public class JSONUtils {
             jsonObject.put("deeplink", notificationRegion.getDeeplink());
             jsonObject.put("openedFromNotification", notificationRegion.isOpenedFromNotification());
             jsonObject.put("idle", notificationRegion.getIdle());
+            jsonObject.put("logHistory", notificationRegion.logHistory());
         }
         return jsonObject;
     }
@@ -77,8 +78,8 @@ public class JSONUtils {
     public static String toDbJson(Region region) {
         try {
             final JSONObject obj = JSONUtils.toJSONObject(region);
-            if(region instanceof NotificationRegion) {
-                obj.put("lastNotificationTime", ((NotificationRegion)region).getLastNotificationTime());
+            if (region instanceof NotificationRegion) {
+                obj.put("lastNotificationTime", ((NotificationRegion) region).getLastNotificationTime());
             }
             if (obj != null) {
                 return obj.toString();
@@ -132,6 +133,7 @@ public class JSONUtils {
             String deeplink = obj.optString("deeplink", "");
             int idle = obj.optInt("idle", 0);
             long lastNotificationTime = obj.optLong("lastNotificationTime", 0);
+            boolean logHistory = obj.optBoolean("logHistory");
 
             if (identifier != null && identifier.isEmpty()) {
                 identifier = JSONUtils.regionHashMapKey(proximityUUID, major, minor);
@@ -141,7 +143,7 @@ public class JSONUtils {
                     exitTitleTmp.isEmpty() && exitMessageTmp.isEmpty()) {
                 return new Region(identifier, proximityUUID, major, minor);
             } else {
-                NotificationRegion ret = new NotificationRegion(identifier, proximityUUID, major, minor, enterMessageTmp, enterTitleTmp, exitMessageTmp, exitTitleTmp, deeplink, idle);
+                NotificationRegion ret = new NotificationRegion(identifier, proximityUUID, major, minor, enterMessageTmp, enterTitleTmp, exitMessageTmp, exitTitleTmp, deeplink, idle, logHistory);
                 ret.setLastNotificationTime(lastNotificationTime);
                 return ret;
             }
@@ -171,6 +173,7 @@ public class JSONUtils {
         return tmpUuid + "%" + major + "%" + minor;
     }
 
+    @Deprecated
     public static String EscapeJavaScriptFunctionParameter(String param) {
         char[] chars = JSONObject.quote(param).toCharArray();
 

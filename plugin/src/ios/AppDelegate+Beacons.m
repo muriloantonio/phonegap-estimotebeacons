@@ -8,13 +8,36 @@
 
 #import "AppDelegate+Beacons.h"
 #import "BeaconsManager.h"
-
+#import <objc/runtime.h>
+#import "EstimoteBeacons.h"
 ESTBeaconManager *knewbeaconManager;
 @implementation AppDelegate (Beacons)
 
-
-
 @dynamic beaconManager;
+
+/**
+ *
+ * This is horrible. I should bath myself on acid after this : (
+ *
+ */
++(int) hasSwizzledDidReceiveLocalNotification
+{
+    NSNumber* hasSwizzledDidReceiveLocalNotification = objc_getAssociatedObject(self, @selector(hasSwizzledDidReceiveLocalNotification));
+    
+    if (hasSwizzledDidReceiveLocalNotification == nil)
+    {
+        hasSwizzledDidReceiveLocalNotification = @0;
+    }
+    
+    self.hasSwizzledDiDReceiveLocalNotification = [hasSwizzledDidReceiveLocalNotification intValue];
+    
+    return [hasSwizzledDidReceiveLocalNotification intValue];
+}
+
++(void)setHasSwizzledDiDReceiveLocalNotification:(int)value
+{
+    objc_setAssociatedObject(self, @selector(hasSwizzledDidReceiveLocalNotification), @(value), OBJC_ASSOCIATION_RETAIN);
+}
 
 - (void)setBeaconManager:(ESTBeaconManager *)beaconManager
 {
@@ -38,6 +61,8 @@ ESTBeaconManager *knewbeaconManager;
         Method originalMethod = class_getInstanceMethod(class, originalSelector);
         Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
         
+        
+        
         BOOL didAddMethod = class_addMethod(class, originalSelector, method_getImplementation(swizzledMethod), method_getTypeEncoding(swizzledMethod));
         
         if (didAddMethod) {
@@ -46,7 +71,6 @@ ESTBeaconManager *knewbeaconManager;
             method_exchangeImplementations(originalMethod, swizzledMethod);
         }
         
-        //
         SEL originalSelectorNoti = @selector(application:didReceiveLocalNotification:);
         SEL swizzledSelectorNoti = @selector(beacons_application:didReceiveLocalNotification:);
         
@@ -57,14 +81,21 @@ ESTBeaconManager *knewbeaconManager;
         
         if (didAddMethodNoti) {
             class_replaceMethod(class, swizzledSelectorNoti, method_getImplementation(originalMethodNoti), method_getTypeEncoding(originalMethodNoti));
+            [self setHasSwizzledDiDReceiveLocalNotification:-1];
         } else {
             method_exchangeImplementations(originalMethodNoti, swizzledMethodNoti);
+            [self setHasSwizzledDiDReceiveLocalNotification:1];
         }
     });
 }
 
 - (BOOL) beacons_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-     NSLog(@"---------- beacons_application_didFinishLaunchingWithOptions ----------");
+    if([launchOptions objectForKey:@"UIApplicationLaunchOptionsLocalNotificationKey"])
+    {
+        UILocalNotification* notification = [launchOptions objectForKey:@"UIApplicationLaunchOptionsLocalNotificationKey"];
+        [[BeaconsManager sharedManager] addNewNotification:notification];
+    }
+    
     knewbeaconManager = [ESTBeaconManager new];
     knewbeaconManager.delegate = self;
     [knewbeaconManager requestAlwaysAuthorization];
@@ -78,8 +109,6 @@ ESTBeaconManager *knewbeaconManager;
 }
 
 -(void) beacons_application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
-    NSLog(@"Did Receive Local Notification Delegate - Beacons");
-    
     if(notification != nil && notification.userInfo && [notification.userInfo objectForKey:@"beacon.notification.data"]) {
         NSDictionary *userInfo = notification.userInfo;
         
@@ -92,104 +121,79 @@ ESTBeaconManager *knewbeaconManager;
         }
         [[NSNotificationCenter defaultCenter] postNotificationName:@"CDVLocalNotificationBeacon" object:notification];
     }
-    
-    [self beacons_application:application didReceiveLocalNotification:notification];
-}
-
--(void)beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
-{
-    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
-    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
-    {
-        
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-        NSString *documentsDirectory = [paths objectAtIndex:0];
-        NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-        NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
-        
-        NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-        NSString *enterMessage = [beacondata objectForKey:@"enterMessage"];
-        if(enterMessage.length > 0)
-        {
-            UILocalNotification *notification = [[UILocalNotification alloc] init];
-            
-            
-            NSDate *now =[NSDate date];
-            //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-            NSString *strLastNotification = [beacondata objectForKey:@"sentnotification"];
-            NSDate *lastNotification = [formatter dateFromString:strLastNotification];
-            
-            NSInteger mins = 0;
-            if(lastNotification != nil)
-            {
-                NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
-                long seconds = lroundf(distanceBetweenDates);
-                 mins = (seconds % 3600) / 60;
-            }
-            else{mins = 9999999;}
-            
-            int verify = [[beacondata objectForKey:@"idle"] integerValue];
-           
-
-            if(verify == 0)
-                [beacondata setValue:0 forKey:@"idle"];
-            
-            if(mins >= verify || [beacondata objectForKey:@"idle"] == 0)
-            {
-                
-                
-                if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
-                    notification.alertTitle = [beacondata objectForKey:@"enterTitle"];
-                }
-                notification.alertBody =[beacondata objectForKey:@"enterMessage"];
-                notification.soundName = UILocalNotificationDefaultSoundName;
-                [beacondata setValue:@"inside" forKey:@"state"];
-                [beacondata setValue:@"true" forKey:@"openedFromNotification"];
-                //set up user info dicionary
-                NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
-                [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
-                [userInfoDict setValue:@"beacon-monitor-enter" forKey:@"event"];
-                if([beacondata objectForKey:@"deeplink"])
-                    [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
-                notification.userInfo = userInfoDict;
-                [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
-                //NSDate *nowregister = [NSDate date];
-                
-                NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-                [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-                NSString *dateString = [formatter stringFromDate:[NSDate date]];
-                
-                [beacondata setValue:dateString forKey:@"sentnotification"];
-                [myDictionary setObject:beacondata forKey:region.identifier];
-                [myDictionary writeToFile:path atomically:YES];
-            }
-        }
+    int a = [[self class] hasSwizzledDidReceiveLocalNotification];
+    if(a == 1) {
+        [self beacons_application:application didReceiveLocalNotification:notification];
     }
 }
 
--(void)beaconManager:(ESTBeaconManager *)manager didExitRegion:(CLBeaconRegion *)region
+-(void) beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
-    if (state == UIApplicationStateBackground || state == UIApplicationStateInactive)
+    
+    if (!(state == UIApplicationStateBackground || state == UIApplicationStateInactive))
     {
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-        NSString *documentsDirectory = [paths objectAtIndex:0];
-        NSString *path = [documentsDirectory stringByAppendingPathComponent:@"Beacons.plist"];
-        NSMutableDictionary *myDictionary=[[NSMutableDictionary alloc] initWithContentsOfFile:path];
+        BOOL s = !(state == UIApplicationStateBackground || state == UIApplicationStateInactive);
+        return;
+    }
+    
+    [self handleRegionEvent:manager forRegion:region onEventType:@"ENTER"];
+}
+
+-(void) beaconManager:(ESTBeaconManager *)manager didExitRegion:(CLBeaconRegion *)region
+{
+    UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    if (!(state == UIApplicationStateBackground || state == UIApplicationStateInactive))
+    {
+        BOOL s = !(state == UIApplicationStateBackground || state == UIApplicationStateInactive);
+        return;
+    }
+    
+    [self handleRegionEvent:manager forRegion:region onEventType:@"EXIT"];
+    
+}
+
+- (void) handleRegionEvent: (ESTBeaconManager*) manager
+                 forRegion: (CLBeaconRegion*) region
+                onEventType: (NSString*) eventType {
+    
+    NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+    NSMutableDictionary *beaconsData = [EstimoteBeacons getBeaconsPlistData];
+    NSMutableDictionary *beaconData = [beaconsData objectForKey:region.identifier];
+    NSInteger logHistory = [[beaconData objectForKey:@"logHistory"] integerValue];
+    if(logHistory == 1)
+    {
+        NSMutableDictionary *LogsHistoryDici =[EstimoteBeacons getLogsPlistData];
+        if(!LogsHistoryDici) {
+            LogsHistoryDici = [[NSMutableDictionary alloc] init];
+        }
         
-        NSMutableDictionary *beacondata = [myDictionary objectForKey:region.identifier];
-        NSString *exitMessage = [beacondata objectForKey:@"exitMessage"];
-        if(exitMessage.length > 0)
+        NSMutableDictionary *NewLog = [[NSMutableDictionary alloc] init];
+        [NewLog setObject:[beaconData objectForKey:@"identifier"] forKey:@"BeaconId"];
+        NSString *dateStringnow = [formatter stringFromDate:[NSDate date]];
+        [NewLog setObject:dateStringnow forKey:@"TimeStamp"];
+        NSString* action = [eventType isEqualToString:@"ENTER"] ? @"enter" : @"exit";
+        [NewLog setObject:action forKey:@"Action"];
+        NSString *dateString = [formatter stringFromDate:[NSDate date]];
+        NSString *filePath = [EstimoteBeacons getLogsPlistPath];
+        [LogsHistoryDici setObject:NewLog forKey:[dateString stringByAppendingString:[beaconData objectForKey:@"uuid"]]];
+        [LogsHistoryDici writeToFile:filePath atomically:YES];
+        
+    }
+    else
+    {
+        NSString* messageKey = [eventType isEqualToString:@"ENTER"] ? @"enterMessage" : @"exitMessage";
+        NSString* titleKey = [eventType isEqualToString:@"ENTER"] ? @"enterTitle" : @"exitTitle";
+        NSString* state = [eventType isEqualToString:@"ENTER"] ? @"inside" : @"outside";
+        NSString* event = [eventType isEqualToString:@"ENTER"] ? @"beacon-monitor-enter" : @"beacon-monitor-exit";
+        
+        NSString *message = [beaconData objectForKey:messageKey];
+        if(message.length > 0)
         {
-            
-            NSDate *now =[NSDate date];
-            
-            //NSDate *lastNotification = [beacondata objectForKey:@"sentnotification"];
-            NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-            [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
-            NSString *strLastNotification = [beacondata objectForKey:@"sentnotification"];
+            UILocalNotification *notification = [[UILocalNotification alloc] init];
+            NSDate *now = [NSDate date];
+            NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
+            NSString *strLastNotification = [beaconData objectForKey:@"sentnotification"];
             NSDate *lastNotification = [formatter dateFromString:strLastNotification];
             NSInteger mins = 0;
             if(lastNotification != nil)
@@ -197,49 +201,47 @@ ESTBeaconManager *knewbeaconManager;
                 NSTimeInterval distanceBetweenDates = [now timeIntervalSinceDate:lastNotification];
                 long seconds = lroundf(distanceBetweenDates);
                 mins = (seconds % 3600) / 60;
-            } else{
+            }
+            else
+            {
                 mins = 9999999;
             }
-            
-            
-            int verify = [[beacondata objectForKey:@"idle"] integerValue];
-            
-            if(verify == 0)
-                [beacondata setValue:0 forKey:@"idle"];
-            
-            if(mins >= verify || [beacondata objectForKey:@"idle"] == 0)
+            NSInteger idleTime = [[beaconData objectForKey:@"idle"] integerValue];
+            if(idleTime == 0)
             {
-                UILocalNotification *notification = [[UILocalNotification alloc] init];
-                if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1) {
-                    notification.alertTitle = [beacondata objectForKey:@"exitTitle"];
+                [beaconData setValue:0 forKey:@"idle"];
+            }
+            if(mins >= idleTime || [beaconData objectForKey:@"idle"] == 0)
+            {
+                if (NSFoundationVersionNumber > NSFoundationVersionNumber_iOS_8_1)
+                {
+                    notification.alertTitle = [beaconData objectForKey:titleKey];
                 }
-                notification.alertBody = [beacondata objectForKey:@"exitMessage"];
+                notification.alertBody =[beaconData objectForKey:messageKey];
                 notification.soundName = UILocalNotificationDefaultSoundName;
-                [beacondata setValue:@"outside" forKey:@"state"];
-                [beacondata setValue:@"true" forKey:@"openedFromNotification"];
-                //set up user info dicionary
-                NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
-                [userInfoDict setObject:beacondata forKey:@"beacon.notification.data"];
-                [userInfoDict setValue:@"beacon-monitor-exit" forKey:@"event"];
                 
-                if([beacondata objectForKey:@"deeplink"])
-                    [userInfoDict setValue:[beacondata objectForKey:@"deeplink"] forKey:@"deeplink"];
+                [beaconData setValue:state forKey:@"state"];
+                [beaconData setValue:@"true" forKey:@"openedFromNotification"];
+                
+                NSMutableDictionary *userInfoDict =[[NSMutableDictionary alloc] init];
+                [userInfoDict setObject:beaconData forKey:@"beacon.notification.data"];
+                [userInfoDict setValue:event forKey:@"event"];
+                
+                if([beaconData objectForKey:@"deeplink"])
+                {
+                    [userInfoDict setValue:[beaconData objectForKey:@"deeplink"] forKey:@"deeplink"];
+                }
+                
                 notification.userInfo = userInfoDict;
                 [[UIApplication sharedApplication] presentLocalNotificationNow:notification];
-                
-               // NSDate *nowregister = [NSDate date];
-                
-                NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-                [formatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ss.SSSZ"];
+                NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
                 NSString *dateString = [formatter stringFromDate:[NSDate date]];
-                
-                [beacondata setValue:dateString forKey:@"sentnotification"];
-                
-                //[beacondata setValue:nowregister forKey:@"sentnotification"];
-                [myDictionary setObject:beacondata forKey:region.identifier];
-                [myDictionary writeToFile:path atomically:YES];
+                [beaconData setValue:dateString forKey:@"sentnotification"];
+                [beaconsData setObject:beaconData forKey:region.identifier];
+                [beaconsData writeToFile:[EstimoteBeacons getBeaconsPlistPath] atomically:YES];
             }
         }
     }
 }
+
 @end
