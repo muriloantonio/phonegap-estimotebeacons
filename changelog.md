@@ -5,12 +5,16 @@
 * Removed unsupported APIs (ranging, scanning and nearables support.)
 * Added history functionality. Regions registered with log history will be saved on the database and can later be fetched using `getAllEvents` and `getLastEvent`. History events do not generate a system notification but are delivered into the application if the app is running in foreground.
 
+Android updates:
+
+* Added location permission request for Android 23+ through `requestAlwaysAuthorization()`
+* Code clean up and removal of unused code
+
 iOS updates:
 
 * Added missing description for location usage
 * Fixed bug that caused the application to enter an infinite recursive loop when tapping a region notification
 * Code clean up and removal of unused code
-* Added the ability to clear the history
 
 ## Version 0.9.0 (March 23, 2016)
 
