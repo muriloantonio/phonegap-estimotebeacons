@@ -48,6 +48,8 @@ CBCentralManagerDelegate >
  */
 @property bool bluetoothState;
 
+@property bool isDeviceReady;
+
 @end
 
 #pragma mark - Estimote Beacons Implementation
@@ -74,6 +76,7 @@ CBCentralManagerDelegate >
  */
 - (void) onReset
 {
+    self.isDeviceReady = NO;
     [self beacons_onReset];
     [self bluetooth_onReset];
 }
@@ -84,8 +87,6 @@ CBCentralManagerDelegate >
 
 - (void) beacons_pluginInitialize
 {
-    //NSLog(@"OBJC EstimoteBeacons pluginInitialize");
-    
     // Crete utility manager instance.
     self.utilityManager = [ESTUtilityManager new];
     self.utilityManager.delegate = self;
@@ -103,6 +104,23 @@ CBCentralManagerDelegate >
                                              selector:@selector(didReceiveLocalNotification:)
                                                  name:@"CDVLocalNotificationBeacon"
                                                object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onPause)
+                                                 name:UIApplicationDidEnterBackgroundNotification object:nil];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onResume)
+                                                 name:UIApplicationWillEnterForegroundNotification object:nil];
+    
+}
+
+- (void) onResume {
+    self.isDeviceReady = YES;
+}
+
+- (void) onPause {
+    self.isDeviceReady = NO;
 }
 
 - (void) beacons_onReset
@@ -301,12 +319,16 @@ CBCentralManagerDelegate >
 }
 
 - (void)didReceiveLocalNotification: (NSNotification *)notification {
-    NSLog(@"didReceiveLocalNotification by Notification Center");
     UILocalNotification *castedotification = notification.object;
     NSDictionary *userInfo = castedotification.userInfo;
     if([userInfo objectForKey:@"beacon.notification.data"] != nil)
     {
-        [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
+        if(self.isDeviceReady)
+        {
+            [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
+        } else {
+            [[BeaconsManager sharedManager] addNewNotification:castedotification];
+        }
     }
 }
 
@@ -340,10 +362,7 @@ CBCentralManagerDelegate >
     return [path copy];
 }
 
-
 - (void)dispatchPush:(NSDictionary *)region forStateEvent: (NSString *) event {
-    NSLog(@"DispatchPush for region");
-    
     NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
     NSInteger logHistory = [[region objectForKey:@"logHistory"] integerValue];
     if(logHistory == 1)
@@ -471,18 +490,20 @@ CBCentralManagerDelegate >
 }
 
 - (void) deviceReady:(CDVInvokedUrlCommand*) command {
-    
     BeaconsManager *beaconsManager = [BeaconsManager sharedManager];
     NSMutableArray *noti = beaconsManager.notifications;
-    
     for (id localNotificationItem in noti) {
         UILocalNotification *localNotification = localNotificationItem;
-        
         NSDictionary *userInfo = localNotification.userInfo;
         [self dispatchPush:[userInfo valueForKey:@"beacon.notification.data"] forStateEvent:[userInfo valueForKey:@"event"]];
         //Remove notification dispatched
         [beaconsManager removeNotification:localNotification];
     }
+    
+    self.isDeviceReady = YES;
+    
+    CDVPluginResult* pr = [CDVPluginResult resultWithStatus: CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult: pr callbackId: command.callbackId];
 }
 
 #pragma mark - CoreLocation monitoring
@@ -516,8 +537,6 @@ CBCentralManagerDelegate >
 - (void) beacons_impl_startMonitoringForRegion:(CDVInvokedUrlCommand*)command
                                        manager:(id)aManager
 {
-    //NSLog(@"OBJC startMonitoringForRegion");
-    
     // Get region dictionary passed from JavaScript and
     // create a beacon region object.
     NSDictionary* regionDictionary = [command argumentAtIndex:0];
@@ -725,8 +744,6 @@ CBCentralManagerDelegate >
  */
 - (void) beacons_requestWhenInUseAuthorization:(CDVInvokedUrlCommand*)command
 {
-    //NSLog(@"OBJC requestWhenInUseAuthorization");
-    
     // Only applicable on iOS 8 and above.
     if (IsAtLeastiOSVersion(@"8.0"))
     {
@@ -745,8 +762,6 @@ CBCentralManagerDelegate >
  */
 - (void) beacons_requestAlwaysAuthorization:(CDVInvokedUrlCommand*)command
 {
-    //NSLog(@"OBJC requestAlwaysAuthorization");
-    
     // Only applicable on iOS 8 and above.
     if (IsAtLeastiOSVersion(@"8.0"))
     {

@@ -90,7 +90,12 @@ ESTBeaconManager *knewbeaconManager;
 }
 
 - (BOOL) beacons_application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    NSLog(@"---------- beacons_application_didFinishLaunchingWithOptions ----------");
+    if([launchOptions objectForKey:@"UIApplicationLaunchOptionsLocalNotificationKey"])
+    {
+        UILocalNotification* notification = [launchOptions objectForKey:@"UIApplicationLaunchOptionsLocalNotificationKey"];
+        [[BeaconsManager sharedManager] addNewNotification:notification];
+    }
+    
     knewbeaconManager = [ESTBeaconManager new];
     knewbeaconManager.delegate = self;
     [knewbeaconManager requestAlwaysAuthorization];
@@ -104,8 +109,6 @@ ESTBeaconManager *knewbeaconManager;
 }
 
 -(void) beacons_application:(UIApplication *)application didReceiveLocalNotification:(UILocalNotification *)notification {
-    NSLog(@"Did Receive Local Notification Delegate - Beacons");
-    
     if(notification != nil && notification.userInfo && [notification.userInfo objectForKey:@"beacon.notification.data"]) {
         NSDictionary *userInfo = notification.userInfo;
         
@@ -127,8 +130,10 @@ ESTBeaconManager *knewbeaconManager;
 -(void) beaconManager:(ESTBeaconManager *)manager didEnterRegion:(CLBeaconRegion *)region
 {
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
+    
     if (!(state == UIApplicationStateBackground || state == UIApplicationStateInactive))
     {
+        BOOL s = !(state == UIApplicationStateBackground || state == UIApplicationStateInactive);
         return;
     }
     
@@ -140,6 +145,7 @@ ESTBeaconManager *knewbeaconManager;
     UIApplicationState state = [[UIApplication sharedApplication] applicationState];
     if (!(state == UIApplicationStateBackground || state == UIApplicationStateInactive))
     {
+        BOOL s = !(state == UIApplicationStateBackground || state == UIApplicationStateInactive);
         return;
     }
     
@@ -152,7 +158,7 @@ ESTBeaconManager *knewbeaconManager;
                 onEventType: (NSString*) eventType {
     
     NSDateFormatter *formatter = [EstimoteBeacons getRegionDateFormatter];
-    NSMutableDictionary *beaconsData= [EstimoteBeacons getBeaconsPlistData];
+    NSMutableDictionary *beaconsData = [EstimoteBeacons getBeaconsPlistData];
     NSMutableDictionary *beaconData = [beaconsData objectForKey:region.identifier];
     NSInteger logHistory = [[beaconData objectForKey:@"logHistory"] integerValue];
     if(logHistory == 1)

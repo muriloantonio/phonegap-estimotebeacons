@@ -569,7 +569,6 @@ channel.waitForInitialization('onBeaconsServiceReady');
 channel.onCordovaReady.subscribe(function() {
     exec( function(data) {
         if(data.ready === true) {
-            console.log("Init Service called and successfully initialized");
             if(channel.onBeaconsServiceReady.state !== 2) {
                 channel.onBeaconsServiceReady.fire();
             }
@@ -587,10 +586,11 @@ var localNotificationData;
 
 cordova.callbacks.EstimoteBeaconsStaticChannel = {
     success: function(data) {
-        console.log("EstimoteBeaconsStaticChannel success");
         if(data !== undefined) {
             var notificationData = {"notificationData" : data};
-
+            if(typeof(data.openedFromNotification) === "string") {
+                data.openedFromNotification = data.openedFromNotification == "true";
+            }
             if(data.openedFromNotification === true) {
                 localNotificationData = notificationData;
             }
