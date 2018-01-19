@@ -17,7 +17,7 @@ public class HistoryStore {
 
     private Context mContext;
     private LocalStorageDBHelper localStorageDBHelper;
-    private SQLiteDatabase database;
+
 
     public HistoryStore(Context context) {
         mContext = context;
@@ -27,7 +27,7 @@ public class HistoryStore {
     public History getHistoryEntry(String regionIdentifier, long timespan) {
         History history = null;
         if (regionIdentifier != null && timespan > 0) {
-            database = localStorageDBHelper.getReadableDatabase();
+            SQLiteDatabase database = localStorageDBHelper.getReadableDatabase();
             Cursor cursor = database.query(LocalStorageDBHelper.HISTORY_TABLE_NAME,
                     null, LocalStorageDBHelper.HISTORY_FIELD_BEACON_ID + " = ? AND " + LocalStorageDBHelper.HISTORY_FIELD_TIME + " = ?",
                     new String[]{regionIdentifier, String.valueOf(timespan)}, null, null, null);
@@ -36,7 +36,6 @@ public class HistoryStore {
                 history = new History(regionIdentifier, timespan, action);
             }
             cursor.close();
-            database.close();
         }
         return history;
     }
@@ -47,7 +46,7 @@ public class HistoryStore {
      * @return
      */
     public History getLastEntry() {
-        database = localStorageDBHelper.getReadableDatabase();
+        SQLiteDatabase database = localStorageDBHelper.getReadableDatabase();
         Cursor cursor = database.query(
                 LocalStorageDBHelper.HISTORY_TABLE_NAME, null, null, null, null, null,
                 LocalStorageDBHelper.HISTORY_FIELD_TIME + " DESC");
@@ -68,7 +67,7 @@ public class HistoryStore {
      */
     public List<History> getAllHistoryEntries() {
         ArrayList<History> entries = new ArrayList<History>();
-        database = localStorageDBHelper.getReadableDatabase();
+        SQLiteDatabase database = localStorageDBHelper.getReadableDatabase();
         Cursor cursor = database.query(LocalStorageDBHelper.HISTORY_TABLE_NAME,
                 null, null,
                 null, null, null,
@@ -92,7 +91,7 @@ public class HistoryStore {
     public List<History> getHistoryEntries(String regionIdentifier) {
         ArrayList<History> entries = new ArrayList<History>();
         if (regionIdentifier != null) {
-            database = localStorageDBHelper.getReadableDatabase();
+            SQLiteDatabase database = localStorageDBHelper.getReadableDatabase();
             Cursor cursor = database.query(LocalStorageDBHelper.HISTORY_TABLE_NAME,
                     new String[]{LocalStorageDBHelper.HISTORY_FIELD_TIME, LocalStorageDBHelper.HISTORY_FIELD_ACTION},
                     LocalStorageDBHelper.HISTORY_FIELD_BEACON_ID + " = ? ",
@@ -110,7 +109,7 @@ public class HistoryStore {
     public void addHistoryEntry(History history) {
         if (history != null) {
             History oldValue = getHistoryEntry(history.getRegionIdentifier(), history.getTimeStamp());
-            database = localStorageDBHelper.getWritableDatabase();
+            SQLiteDatabase database = localStorageDBHelper.getWritableDatabase();
             ContentValues values = new ContentValues();
             values.put(LocalStorageDBHelper.HISTORY_FIELD_BEACON_ID, history.getRegionIdentifier());
             values.put(LocalStorageDBHelper.HISTORY_FIELD_TIME, history.getTimeStamp());
@@ -118,15 +117,13 @@ public class HistoryStore {
             if (oldValue == null) {
                 database.insert(LocalStorageDBHelper.HISTORY_TABLE_NAME, null, values);
             }
-            database.close();
         }
     }
 
 
     public void clear() {
-        database = localStorageDBHelper.getWritableDatabase();
+        SQLiteDatabase database = localStorageDBHelper.getWritableDatabase();
         database.delete(LocalStorageDBHelper.HISTORY_TABLE_NAME, null, null);
-        database.close();
         //storage.clear();
     }
 
