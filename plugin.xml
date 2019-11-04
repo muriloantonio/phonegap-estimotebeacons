@@ -52,7 +52,11 @@
 		<source-file src="plugin/src/android/HistoryStore.java" target-dir="src/com/evothings" />
 
         <framework src="plugin/src/android/estimotesdk.gradle" custom="true" type="gradleReference" />
-        <resource-file src="libs/estimote-sdk.aar" target="libs/estimote-sdk.aar"/>
+        
+	<!--Removida para testes, instrução dada no forum Outsystems
+	<resource-file src="libs/estimote-sdk.aar" target="libs/estimote-sdk.aar"/>-->
+	
+	<source-file src="libs/estimote-sdk.aar" target-dir="libs" framework="true"/>
         
 	</platform>
 
