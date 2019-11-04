@@ -4,7 +4,6 @@ repositories {
         dirs 'libs'
     }
 }
-
 dependencies {
-    compile(name:'estimote-sdk', ext:'aar')
+    implementation(name:'estimote-sdk', ext:'aar')
 }
